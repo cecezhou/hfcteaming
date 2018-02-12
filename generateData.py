@@ -1,5 +1,3 @@
-
-
 from __future__ import print_function
 
 import sys
@@ -21,7 +19,6 @@ K_d = int(np.floor(W_d/ Q)) # number of diverse teams
 print(K_d)
 K_s = None # number of specialized teams
 
-### Make sure 
 
 ## 500 people
 ## assume 15 skills as a reasonable upper bound
@@ -31,17 +28,6 @@ K_s = None # number of specialized teams
 ## get what teams it's doing
 ## 
 
-
-
-# N = 200 # total number of participants
-# t = N * 0.4 # number of turkers
-# Q = 12 # number of people per desired team
-# Q_t = 4 # number of turkers per desired team
-# M_1 = 3 # number of other types of skills (working together, fluid intelligence)
-# M_2 = 5 # number of topic specific skill dimensions
-# M = M_1 + M_2 # total number of skills, used for diverse teams, topics only used for specific teams
-# K_d = int(min(np.floor( t/2 / Q_t), np.floor((N-t)/2/ (Q-Q_t)))) # number of diverse teams
-# K_s = None # number of specialized teams
 
 ## first we will generate data assuming skills are independent from one another
 ## then we will generate data increasing correlation between skills
