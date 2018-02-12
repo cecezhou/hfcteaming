@@ -12,7 +12,7 @@ import random
 
 
 N = 200 # total number of participants
-Q = 8 # number of people per desired team
+Q = 10 # number of people per desired team
 M_1 = 0 # number of other types of skills (working together, fluid intelligence)
 M_2 = 5 # number of topic specific skill dimensions
 M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
@@ -20,6 +20,16 @@ W_d = int(N/2)
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
 print(K_d)
 K_s = None # number of specialized teams
+
+### Make sure 
+
+## 500 people
+## assume 15 skills as a reasonable upper bound
+## assume team size 10
+## i.i.d uniform 0 1, make correlations
+## want confirmation that it scales, and get a qualitative sense of what it's doing
+## get what teams it's doing
+## 
 
 
 
@@ -36,12 +46,11 @@ K_s = None # number of specialized teams
 ## first we will generate data assuming skills are independent from one another
 ## then we will generate data increasing correlation between skills
 # M by N matrix, rows are skills
-V = np.random.normal(0,1, (M, W_d))
+V = np.random.uniform(0, 1, (M, W_d))
 
 # add a dummy skill
 V = np.append(V, [[0]*W_d], axis = 0)
-M = M + 1
-print(V)
+# print(V)
 
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
@@ -53,7 +62,7 @@ print(V)
 # determine the objective function, coefficients of the X_ijk which are just the V_ij's
 my_obj = np.array([V for _ in range(K_d)])
 my_obj = my_obj.flatten()
-num_vars = W_d * K_d * M
+num_vars = W_d * K_d * (M + 1)
 my_ub = [1.0] * num_vars
 my_lb = [0.0] * num_vars
 assert(len(my_ub) == len(my_obj))
@@ -64,8 +73,8 @@ assert(len(my_ub) == len(my_obj))
 my_ctype = "I" * num_vars
 # NOTE: in the nonzero populate function we don't need the column or row name
 ## TODO RHS
-my_rhs = [1.0] * (int(N/2)  +  M * K_d) + [-Q] * K_d
-my_sense = "E" * (int(N/2)) + "L" * (M* K_d +  K_d)
+my_rhs = [1.0] * (int(N/2)  +  (M) * K_d) + [-Q] * K_d
+my_sense = "E" * (int(N/2)) + "L" * ((M)* K_d +  K_d)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
 print(len(my_sense))
@@ -80,21 +89,21 @@ def populatebynonzero(prob):
     prob.variables.add(obj=my_obj, lb=my_lb, ub=my_ub, types=my_ctype)
 
    #  rows = np.zeros((K_d, M, int(N/2)))
-    rows1 = [[i] * (M* K_d) for i in range(W_d)]
-    rows2 = [[W_d + rownum] * (W_d) for rownum in range(M* K_d)]
-    rows3 = [[W_d + M* K_d + rownum]  * (W_d * M) for rownum in range(K_d)]
+    rows1 = [[i] * ((M + 1)* K_d) for i in range(W_d)]
+    rows2 = [[W_d + rownum] * (W_d) for rownum in range((M)* K_d)]
+    rows3 = [[W_d + (M)* K_d + rownum]  * (W_d * (M+1)) for rownum in range(K_d)]
    # rows4 = [[int(N/2) + M* K_d + (K_d)] * (int(t/2) * M) for rownum in range(K_d)]
     rows = [rows1, rows2, rows3]
     rows = flatten(flatten(rows))
     # print(rows)
-    cols1 = [[[int(N/2) * M * k + int(N/2) * j + i for j in range(M)] for k in range(K_d)] for i in range(int(N/2))]
-    cols2 = [[[M * int(N/2) * k + int(N/2) * j + i for i in range(int(N/2))] for k in range(K_d)] for j in range(M)]
-    cols3 = [[[M * int(N/2) * k + int(N/2) * j + i for i in range(W_d)] for j in range(M)] for k in range(K_d)] 
+    cols1 = [[[int(N/2) * (M + 1) * k + int(N/2) * j + i for j in range(M + 1)] for k in range(K_d)] for i in range(int(N/2))]
+    cols2 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(int(N/2))] for k in range(K_d)] for j in range(M)]
+    cols3 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_d)] for j in range(M + 1)] for k in range(K_d)] 
     cols = [cols1, cols2, cols3] 
     cols = flatten(flatten(flatten(cols)))
     assert(len(cols) == len(rows))
 
-    vals = [1.0] * (W_d * M * K_d * 2) + [-1.0] * (W_d * M * K_d)
+    vals = [1.0] * (W_d * (2*M + 1) * K_d) + [-1.0] * (W_d * (M+1) * K_d)
     coeffs = zip(rows, cols, vals)
     prob.linear_constraints.set_coefficients(coeffs)
  	
