@@ -41,6 +41,7 @@ V = np.random.normal(0,1, (M, W_d))
 # add a dummy skill
 V = np.append(V, [[0]*W_d], axis = 0)
 M = M + 1
+print(V)
 
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
