@@ -36,8 +36,6 @@ V = np.random.uniform(0, 1, (M, W_d))
 
 # add a dummy skill
 V = np.append(V, [[0]*W_d], axis = 0)
-# print(V)
-
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
 # for j in range(M):
@@ -66,7 +64,6 @@ assert(len(my_rhs) == len(my_sense))
 print(len(my_sense))
 
 
-# introduce dummy skill 
 
 def populatebynonzero(prob):
     prob.objective.set_sense(prob.objective.sense.maximize)
@@ -74,15 +71,16 @@ def populatebynonzero(prob):
     prob.linear_constraints.add(rhs=my_rhs, senses=my_sense)
     prob.variables.add(obj=my_obj, lb=my_lb, ub=my_ub, types=my_ctype)
 
-   #  rows = np.zeros((K_d, M, int(N/2)))
     rows1 = [[i] * ((M + 1)* K_d) for i in range(W_d)]
+    # dummy skill not constrained here
     rows2 = [[W_d + rownum] * (W_d) for rownum in range((M)* K_d)]
     rows3 = [[W_d + (M)* K_d + rownum]  * (W_d * (M+1)) for rownum in range(K_d)]
-   # rows4 = [[int(N/2) + M* K_d + (K_d)] * (int(t/2) * M) for rownum in range(K_d)]
     rows = [rows1, rows2, rows3]
     rows = flatten(flatten(rows))
-    # print(rows)
+
+
     cols1 = [[[int(N/2) * (M + 1) * k + int(N/2) * j + i for j in range(M + 1)] for k in range(K_d)] for i in range(int(N/2))]
+    # dummy skill not constrained here
     cols2 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(int(N/2))] for k in range(K_d)] for j in range(M)]
     cols3 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_d)] for j in range(M + 1)] for k in range(K_d)] 
     cols = [cols1, cols2, cols3] 
@@ -101,7 +99,6 @@ handle = populatebynonzero(my_prob)
 
 
 print("done generating")
-# exit(0)
 
 
 my_prob.solve()
