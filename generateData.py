@@ -9,10 +9,10 @@ import random
 
 
 
-N = 200 # total number of participants
+N = 500 # total number of participants
 Q = 10 # number of people per desired team
 M_1 = 0 # number of other types of skills (working together, fluid intelligence)
-M_2 = 5 # number of topic specific skill dimensions
+M_2 = 15 # number of topic specific skill dimensions
 M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
 W_d = int(N/2)
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams

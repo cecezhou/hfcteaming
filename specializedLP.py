@@ -79,31 +79,37 @@ def populatebynonzero(prob):
     rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_s) for rownum in range(K_s)]
 
     rows = [rows1, rows2, rows3, rows4, rows5]
+    # for r in rows:
+    #     printshape(r)
+    
     rows = flatten(flatten(rows))
 
 
     cols1 = [[index, index + K_s * M] for index in range(K_s * M)] 
-    cols2 = [[k * M + j] + [k * W_s + i for i in range(W_s)] for k,j in itertools.product(range(K_s), range(M))]
+    cols2 = [[[k * M + j] + [K_s * M * 2 + k * W_s + i for i in range(W_s)] for j in range(M)] for k in range(K_s)]
+    cols2 = flatten(cols2)
     cols3 = [[k * M + j for j in range(M)] for k in range(K_s)]
     cols4 = [[k * W_s + i for k in range(K_s)] for i in range(W_s)]
     cols5 = [[k * W_s + i for i in range(W_s)] for k in range(K_s)]
     cols = [cols1, cols2, cols3, cols4, cols5] 
+
+    # for c in cols:
+    #     printshape(c)
+
     cols = flatten(flatten(cols))
 
-    rowcol = list(zip(rows,cols))
-    # print(len(rowcol) != len(set(rowcol)))
-    seen = set()
-    for rc in rowcol:
-        if rc in seen:
-            print(rc)
-        seen.add(rc)
-
-  
+    # rowcol = list(zip(rows,cols))
+    # # print(len(rowcol) != len(set(rowcol)))
+    # seen = set([(50, 0), (51, 1), (52, 2), (53, 3), (54, 4)])
+    # for idx,rc in enumerate(rowcol):
+    #     if rc in seen:
+    #         print(idx, rc)
+    #     seen.add(rc)
 
 
     vals1 = [1.0, -G] * (M * K_s) 
-    temp = [[1.0] + [-V[j][i] for i in range(W_s)] for (k,j) in itertools.product(range(K_s), range(M))]
-    vals2 = flatten(temp) 
+    temp = [[[1.0] + [-V[j][i] for i in range(W_s)] for j in range(M)] for k in range(K_s)]
+    vals2 = flatten(flatten(temp))
     vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_s)
     vals = flatten([vals1,vals2, vals3])
     assert(len(vals) == len(rows))
