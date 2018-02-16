@@ -12,7 +12,7 @@ import itertools
 N = 200 # total number of participants
 Q = 10 # number of people per desired team
 M_1 = 0 # number of other types of skills (working together, fluid intelligence)
-M_2 = 5 # number of topic specific skill dimensions
+M_2 = 12 # number of topic specific skill dimensions
 M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
 W_d = int(N/2)
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
@@ -79,8 +79,8 @@ def populatebynonzero(prob):
     rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_s) for rownum in range(K_s)]
 
     rows = [rows1, rows2, rows3, rows4, rows5]
-    # for r in rows:
-    #     printshape(r)
+    for r in rows:
+        printshape(r)
     
     rows = flatten(flatten(rows))
 
