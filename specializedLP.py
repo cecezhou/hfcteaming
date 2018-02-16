@@ -6,7 +6,7 @@ import cplex
 from cplex.exceptions import CplexError
 import numpy as np
 import random
-
+import itertools
 
 
 N = 200 # total number of participants
@@ -16,8 +16,9 @@ M_2 = 5 # number of topic specific skill dimensions
 M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
 W_d = int(N/2)
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
-print(K_d)
-K_s = None # number of specialized teams
+# print(K_d)
+W_s = N - W_d
+K_s = int(np.floor((N - W_d)/Q))# number of specialized teams
 
 
 ## 500 people
@@ -28,12 +29,13 @@ K_s = None # number of specialized teams
 ## have it take in a config file for number of people, and V_ij, if passed in, otherwise generate uniformly
 ## reincorporate the turker part.....
 
-# M by W_d matrix, rows are skills
+
+# M by W_s matrix, rows are skills
 print("Generating Random Values for ")
-V = np.random.uniform(0, 1, (M, W_d))
+V = np.random.uniform(0, 1, (M, W_s))
 
 # add a dummy skill
-V = np.append(V, [[0]*W_d], axis = 0)
+# V = np.append(V, [[0]*W_d], axis = 0)
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
 # for j in range(M):
@@ -42,24 +44,26 @@ V = np.append(V, [[0]*W_d], axis = 0)
 # 	print(np.std(V[j]))
 
 # determine the objective function, coefficients of the X_ijk which are just the V_ij's
-my_obj = np.array([V for _ in range(K_d)])
+my_obj = np.array([1.0]*(K_s * M) + [0.0] * (K_s * M + W_s * K_s))
 my_obj = my_obj.flatten()
-num_vars = W_d * K_d * (M + 1)
-my_ub = [1.0] * num_vars
+num_vars = 2* K_s * M  + W_s * K_s 
+my_ub = [cplex.infinity] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
 my_lb = [0.0] * num_vars
 assert(len(my_ub) == len(my_obj))
+G = Q
 
-# ## String with possible char values 'B','I','C','S','N'; set ctype(j) to 
-# ## 'B', 'I','C', 'S', or 'N' to indicate that x(j) should be binary, general integer, 
-# ## continuous, semi-continuous or semi-integer (respectively).
-my_ctype = "I" * num_vars
+
+my_ctype = "C" * (K_s * M) + "B" * (K_s * M + W_s * K_s)
 # NOTE: in the nonzero populate function we don't need the column or row name
-my_rhs = [1.0] * (int(N/2)  +  (M) * K_d) + [-Q] * K_d
-my_sense = "E" * (int(N/2)) + "L" * ((M)* K_d +  K_d)
+## TODO RHS
+my_rhs = [0] * (2 * K_s * M ) + [1]* (W_s + K_s) + [-Q] * K_s
+my_sense = "L" * (2 * K_s * M) + "E"*(W_s + K_s) + "L" * K_s
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
-print(len(my_sense))
+# print(len(my_sense))
 
+def printshape(l):
+    print(np.array(l).shape)
 
 
 def populatebynonzero(prob):
@@ -68,27 +72,45 @@ def populatebynonzero(prob):
     prob.linear_constraints.add(rhs=my_rhs, senses=my_sense)
     prob.variables.add(obj=my_obj, lb=my_lb, ub=my_ub, types=my_ctype)
 
-    rows1 = [[i] * ((M + 1)* K_d) for i in range(W_d)]
-    # dummy skill not constrained here
-    rows2 = [[W_d + rownum] * (W_d) for rownum in range((M)* K_d)]
-    rows3 = [[W_d + (M)* K_d + rownum]  * (W_d * (M+1)) for rownum in range(K_d)]
-    rows = [rows1, rows2, rows3]
+    rows1 = [[i] * (2) for i in range(K_s * M)]
+    rows2 = [[K_s * M + rownum] * (1 + W_s) for rownum in range(K_s * M)]
+    rows3 = [[K_s * M * 2 + rownum]  * (M) for rownum in range(K_s)]
+    rows4 = [[K_s * M * 2 + K_s + rownum] * (K_s) for rownum in range(W_s)]
+    rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_s) for rownum in range(K_s)]
+
+    rows = [rows1, rows2, rows3, rows4, rows5]
     rows = flatten(flatten(rows))
 
 
-    cols1 = [[[int(N/2) * (M + 1) * k + int(N/2) * j + i for j in range(M + 1)] for k in range(K_d)] for i in range(int(N/2))]
-    # dummy skill not constrained here
-    cols2 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(int(N/2))] for k in range(K_d)] for j in range(M)]
-    cols3 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_d)] for j in range(M + 1)] for k in range(K_d)] 
-    cols = [cols1, cols2, cols3] 
-    cols = flatten(flatten(flatten(cols)))
-    assert(len(cols) == len(rows))
+    cols1 = [[index, index + K_s * M] for index in range(K_s * M)] 
+    cols2 = [[k * M + j] + [k * W_s + i for i in range(W_s)] for k,j in itertools.product(range(K_s), range(M))]
+    cols3 = [[k * M + j for j in range(M)] for k in range(K_s)]
+    cols4 = [[k * W_s + i for k in range(K_s)] for i in range(W_s)]
+    cols5 = [[k * W_s + i for i in range(W_s)] for k in range(K_s)]
+    cols = [cols1, cols2, cols3, cols4, cols5] 
+    cols = flatten(flatten(cols))
 
-    vals = [1.0] * (W_d * (2*M + 1) * K_d) + [-1.0] * (W_d * (M+1) * K_d)
+    rowcol = list(zip(rows,cols))
+    # print(len(rowcol) != len(set(rowcol)))
+    seen = set()
+    for rc in rowcol:
+        if rc in seen:
+            print(rc)
+        seen.add(rc)
+
+  
+
+
+    vals1 = [1.0, -G] * (M * K_s) 
+    temp = [[1.0] + [-V[j][i] for i in range(W_s)] for (k,j) in itertools.product(range(K_s), range(M))]
+    vals2 = flatten(temp) 
+    vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_s)
+    vals = flatten([vals1,vals2, vals3])
+    assert(len(vals) == len(rows))
     coeffs = zip(rows, cols, vals)
+
     prob.linear_constraints.set_coefficients(coeffs)
  	
-    assert(len(rows) == len(vals))
 
 
 my_prob = cplex.Cplex()
