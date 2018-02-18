@@ -7,18 +7,21 @@ from cplex.exceptions import CplexError
 import numpy as np
 import random
 import itertools
+np.random.seed = 2
 
-
-N = 200 # total number of participants
-Q = 10 # number of people per desired team
+N = 8 # total number of participants
+Q = 2 # number of people per desired team
 M_1 = 0 # number of other types of skills (working together, fluid intelligence)
-M_2 = 12 # number of topic specific skill dimensions
+M_2 = 1 # number of topic specific skill dimensions
 M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
 W_d = int(N/2)
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
 # print(K_d)
 W_s = N - W_d
 K_s = int(np.floor((N - W_d)/Q))# number of specialized teams
+print("Number of People: ", W_s)
+print("Number of Teams: ", K_s)
+print("Number of Skills: ", M)
 
 
 ## 500 people
@@ -31,8 +34,9 @@ K_s = int(np.floor((N - W_d)/Q))# number of specialized teams
 
 
 # M by W_s matrix, rows are skills
-print("Generating Random Values for ")
+print("Generating Random Values for Skills: ")
 V = np.random.uniform(0, 1, (M, W_s))
+print(V)
 
 # add a dummy skill
 # V = np.append(V, [[0]*W_d], axis = 0)
@@ -49,6 +53,7 @@ my_obj = my_obj.flatten()
 num_vars = 2* K_s * M  + W_s * K_s 
 my_ub = [cplex.infinity] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
 my_lb = [0.0] * num_vars
+print("Number of Variables: ", num_vars)
 assert(len(my_ub) == len(my_obj))
 G = Q
 
@@ -73,7 +78,8 @@ def populatebynonzero(prob):
     prob.variables.add(obj=my_obj, lb=my_lb, ub=my_ub, types=my_ctype)
 
     rows1 = [[i] * (2) for i in range(K_s * M)]
-    rows2 = [[K_s * M + rownum] * (1 + W_s) for rownum in range(K_s * M)]
+    rows2 = [[[K_s * M + k*M + j] * (1 + W_s) for j in range(M)] for k in range(K_s)]
+    rows2 = flatten(rows2)
     rows3 = [[K_s * M * 2 + rownum]  * (M) for rownum in range(K_s)]
     rows4 = [[K_s * M * 2 + K_s + rownum] * (K_s) for rownum in range(W_s)]
     rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_s) for rownum in range(K_s)]
@@ -88,17 +94,16 @@ def populatebynonzero(prob):
     cols1 = [[index, index + K_s * M] for index in range(K_s * M)] 
     cols2 = [[[k * M + j] + [K_s * M * 2 + k * W_s + i for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     cols2 = flatten(cols2)
-    cols3 = [[k * M + j for j in range(M)] for k in range(K_s)]
-    cols4 = [[k * W_s + i for k in range(K_s)] for i in range(W_s)]
-    cols5 = [[k * W_s + i for i in range(W_s)] for k in range(K_s)]
+    cols3 = [[K_s * M + k * M + j for j in range(M)] for k in range(K_s)]
+    cols4 = [[K_s * M  * 2 + k * W_s + i for k in range(K_s)] for i in range(W_s)]
+    cols5 = [[K_s * M  * 2 + k * W_s + i for i in range(W_s)] for k in range(K_s)]
     cols = [cols1, cols2, cols3, cols4, cols5] 
-
-    # for c in cols:
-    #     printshape(c)
 
     cols = flatten(flatten(cols))
 
-    # rowcol = list(zip(rows,cols))
+    assert(len(cols) == len(rows))
+
+    rowcol = list(zip(rows,cols))
     # # print(len(rowcol) != len(set(rowcol)))
     # seen = set([(50, 0), (51, 1), (52, 2), (53, 3), (54, 4)])
     # for idx,rc in enumerate(rowcol):
@@ -113,9 +118,8 @@ def populatebynonzero(prob):
     vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_s)
     vals = flatten([vals1,vals2, vals3])
     assert(len(vals) == len(rows))
-    coeffs = zip(rows, cols, vals)
-
-    prob.linear_constraints.set_coefficients(coeffs)
+    print(list(zip(rows, cols, vals)))
+    prob.linear_constraints.set_coefficients(zip(rows, cols, vals))
  	
 
 
