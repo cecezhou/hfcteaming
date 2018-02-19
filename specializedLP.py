@@ -9,10 +9,10 @@ import random
 import itertools
 np.random.seed = 2
 
-N = 8 # total number of participants
-Q = 2 # number of people per desired team
+N = 200 # total number of participants
+Q = 10 # number of people per desired team
 M_1 = 0 # number of other types of skills (working together, fluid intelligence)
-M_2 = 1 # number of topic specific skill dimensions
+M_2 = 15 # number of topic specific skill dimensions
 M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
 W_d = int(N/2)
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
@@ -36,7 +36,7 @@ print("Number of Skills: ", M)
 # M by W_s matrix, rows are skills
 print("Generating Random Values for Skills: ")
 V = np.random.uniform(0, 1, (M, W_s))
-print(V)
+# print(V)
 
 # add a dummy skill
 # V = np.append(V, [[0]*W_d], axis = 0)
@@ -53,7 +53,7 @@ my_obj = my_obj.flatten()
 num_vars = 2* K_s * M  + W_s * K_s 
 my_ub = [cplex.infinity] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
 my_lb = [0.0] * num_vars
-print("Number of Variables: ", num_vars)
+# print("Number of Variables: ", num_vars)
 assert(len(my_ub) == len(my_obj))
 G = Q
 
@@ -85,8 +85,8 @@ def populatebynonzero(prob):
     rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_s) for rownum in range(K_s)]
 
     rows = [rows1, rows2, rows3, rows4, rows5]
-    for r in rows:
-        printshape(r)
+    # for r in rows:
+    #     printshape(r)
     
     rows = flatten(flatten(rows))
 
@@ -118,7 +118,7 @@ def populatebynonzero(prob):
     vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_s)
     vals = flatten([vals1,vals2, vals3])
     assert(len(vals) == len(rows))
-    print(list(zip(rows, cols, vals)))
+    # print(list(zip(rows, cols, vals)))
     prob.linear_constraints.set_coefficients(zip(rows, cols, vals))
  	
 
