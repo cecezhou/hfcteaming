@@ -143,8 +143,8 @@ numrows = my_prob.linear_constraints.get_num()
 slack = my_prob.solution.get_linear_slacks()
 x = my_prob.solution.get_values()
 
-# for j in range(numrows):
-#     print("Row %d:  Slack = %10f" % (j, slack[j]))
+for j in range(numrows):
+    print("Row %d:  Slack = %10f" % (j, slack[j]))
 for j in range(numcols):
     print("Column %d:  Value = %10f" % (j, x[j]))
 
