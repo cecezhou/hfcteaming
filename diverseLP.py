@@ -9,16 +9,19 @@ import random
 
 
 
-N = 500 # total number of participants
+N = 200 # total number of participants
 Q = 10 # number of people per desired team
 M_1 = 0 # number of other types of skills (working together, fluid intelligence)
 M_2 = 15 # number of topic specific skill dimensions
 M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
 W_d = int(N/2)
-K_d = int(np.floor(W_d/ Q)) # number of diverse teams
+K_d = int(np.floor(W_d/ Q) - 1) # number of diverse teams
 print(K_d)
 K_s = None # number of specialized teams
-
+Q_reg = 7
+Q_slack = 3
+W_reg = 70
+W_slack = 30
 
 ## 500 people
 ## assume 15 skills as a reasonable upper bound
@@ -33,6 +36,7 @@ print("Generating Random Values for ")
 V = np.random.uniform(0, 1, (M, W_d))
 
 # add a dummy skill
+## we need VIJ to be sorted by non slackers first, then slackers
 V = np.append(V, [[0]*W_d], axis = 0)
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
@@ -54,13 +58,14 @@ assert(len(my_ub) == len(my_obj))
 # ## continuous, semi-continuous or semi-integer (respectively).
 my_ctype = "I" * num_vars
 # NOTE: in the nonzero populate function we don't need the column or row name
-my_rhs = [1.0] * (int(N/2)  +  (M) * K_d) + [-Q] * K_d
-my_sense = "E" * (int(N/2)) + "L" * ((M)* K_d +  K_d)
+my_rhs = [1.0] * (int(N/2)  +  (M) * K_d) + [-Q_reg] * K_d + [-Q_slack] * K_d
+my_sense = "E" * (int(N/2)) + "L" * ((M)* K_d + 2 * K_d)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
 print(len(my_sense))
 
-
+def printshape(l):
+    print(np.array(l).shape)
 
 def populatebynonzero(prob):
     prob.objective.set_sense(prob.objective.sense.maximize)
@@ -71,20 +76,33 @@ def populatebynonzero(prob):
     rows1 = [[i] * ((M + 1)* K_d) for i in range(W_d)]
     # dummy skill not constrained here
     rows2 = [[W_d + rownum] * (W_d) for rownum in range((M)* K_d)]
-    rows3 = [[W_d + (M)* K_d + rownum]  * (W_d * (M+1)) for rownum in range(K_d)]
-    rows = [rows1, rows2, rows3]
+    rows3 = [[W_d + (M)* K_d + rownum]  * (W_reg * (M+1)) for rownum in range(K_d)]
+    rows4 = [[W_d + (M)* K_d + K_d + rownum]  * (W_slack * (M+1)) for rownum in range(K_d)]
+
+    rows = [rows1, rows2, rows3, rows4]
+    for r in rows:
+        printshape(r)
     rows = flatten(flatten(rows))
+    print(len(rows))
 
 
     cols1 = [[[int(N/2) * (M + 1) * k + int(N/2) * j + i for j in range(M + 1)] for k in range(K_d)] for i in range(int(N/2))]
     # dummy skill not constrained here
     cols2 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(int(N/2))] for k in range(K_d)] for j in range(M)]
-    cols3 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_d)] for j in range(M + 1)] for k in range(K_d)] 
-    cols = [cols1, cols2, cols3] 
-    cols = flatten(flatten(flatten(cols)))
-    assert(len(cols) == len(rows))
+    cols3 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_reg)] for j in range(M + 1)] for k in range(K_d)] 
+    cols4 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_reg, W_reg + W_slack)] for j in range(M + 1)] for k in range(K_d)] 
 
-    vals = [1.0] * (W_d * (2*M + 1) * K_d) + [-1.0] * (W_d * (M+1) * K_d)
+    cols = [cols1, cols2, cols3, cols4]
+    for c in cols:
+        printshape(c)
+    cols = flatten(flatten(flatten(cols)))
+    print(len(cols))
+
+    assert(len(cols) == len(rows))
+    print("Vals len:")
+    vals = [1.0] * (W_d * (2*M + 1) * K_d) + [-1.0] * ((W_reg + W_slack) * (M+1) * K_d)
+    print(len(vals))
+
     coeffs = zip(rows, cols, vals)
     prob.linear_constraints.set_coefficients(coeffs)
  	
