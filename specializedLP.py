@@ -7,16 +7,27 @@ from cplex.exceptions import CplexError
 import numpy as np
 import random
 import itertools
-np.random.seed = 2
+import pandas as pd
+np.random.seed = 10
 
-N = 200 # total number of participants
+import heapq
+
+
+data = pd.read_csv("simulatedDataCorrelated.csv")
+V = data.values
+M = V.shape[0]
+N = V.shape[1]
+print("Total Number of Participants:", N)
+
+
 Q = 10 # number of people per desired team
-M_1 = 0 # number of other types of skills (working together, fluid intelligence)
-M_2 = 15 # number of topic specific skill dimensions
-M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
-W_d = int(N/2)
+W_d = int(N/2) 
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
-# print(K_d)
+Q_reg = int(0.8 *  Q)
+Q_slack = int(0.2 * Q)
+W_reg = int(0.8 * W_d)
+W_slack = int(0.2 * W_d)
+
 W_s = N - W_d
 K_s = int(np.floor((N - W_d)/Q))# number of specialized teams
 print("Number of People: ", W_s)
@@ -24,22 +35,13 @@ print("Number of Teams: ", K_s)
 print("Number of Skills: ", M)
 
 
-## 500 people
-## assume 15 skills as a reasonable upper bound
-## assume team size 10
-## i.i.d uniform 0 1, make correlations
-## want confirmation that it scales, and get a qualitative sense of what it's doing
-## have it take in a config file for number of people, and V_ij, if passed in, otherwise generate uniformly
-## reincorporate the turker part.....
+### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
 
+# Take the first half for the diverse LP
+V = V[:, W_d:]
 
-# M by W_s matrix, rows are skills
-print("Generating Random Values for Skills: ")
-V = np.random.uniform(0, 1, (M, W_s))
-# print(V)
+print(V.shape)
 
-# add a dummy skill
-# V = np.append(V, [[0]*W_d], axis = 0)
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
 # for j in range(M):
@@ -55,7 +57,11 @@ my_ub = [cplex.infinity] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
 my_lb = [0.0] * num_vars
 # print("Number of Variables: ", num_vars)
 assert(len(my_ub) == len(my_obj))
-G = Q
+
+G = max([sum(heapq.nlargest(Q, V[i])) for i in range(M)])
+
+print(G)
+# G = Q
 
 
 my_ctype = "C" * (K_s * M) + "B" * (K_s * M + W_s * K_s)

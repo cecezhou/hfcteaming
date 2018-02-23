@@ -6,45 +6,46 @@ import cplex
 from cplex.exceptions import CplexError
 import numpy as np
 import random
+import csv
+import pandas as pd
+
+## Read in Data 
 
 
+data = pd.read_csv("simulatedDataCorrelated.csv")
+V = data.values
+M = V.shape[0]
+N = V.shape[1]
+print("Total Number of Participants:", N)
 
-N = 200 # total number of participants
+
 Q = 10 # number of people per desired team
-M_1 = 0 # number of other types of skills (working together, fluid intelligence)
-M_2 = 15 # number of topic specific skill dimensions
-M = M_1 + M_2# total number of skills, used for diverse teams, topics only used for specific teams
-W_d = int(N/2)
-K_d = int(np.floor(W_d/ Q) - 1) # number of diverse teams
-print(K_d)
-K_s = None # number of specialized teams
-Q_reg = 7
-Q_slack = 3
-W_reg = 70
-W_slack = 30
+W_d = int(N/2) 
+K_d = int(np.floor(W_d/ Q)) # number of diverse teams
+Q_reg = int(0.8 *  Q)
+Q_slack = int(0.2 * Q)
+W_reg = int(0.8 * W_d)
+W_slack = int(0.2 * W_d)
 
-## 500 people
-## assume 15 skills as a reasonable upper bound
-## assume team size 10
-## i.i.d uniform 0 1, make correlations
-## want confirmation that it scales, and get a qualitative sense of what it's doing
-## have it take in a config file for number of people, and V_ij, if passed in, otherwise generate uniformly
-## reincorporate the turker part.....
 
-# M by W_d matrix, rows are skills
-print("Generating Random Values for ")
-V = np.random.uniform(0, 1, (M, W_d))
+### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
+
+# Take the first half for the diverse LP
+V = V[:, 0:W_d]
+print("Number of participants in Diverse Teams:", V.shape[1])
+# normalize the data if we are using real data, but in simulation, the standard deviation is already determined
+# for j in range(M):
+#   V[j] = (V[j]- np.mean(V[j]))/np.std(V[j]) 
+#   print(np.mean(V[j]))
+#   print(np.std(V[j]))
+
 
 # add a dummy skill
 ## we need VIJ to be sorted by non slackers first, then slackers
 V = np.append(V, [[0]*W_d], axis = 0)
 
-# normalize the data if we are using real data, but in simulation, the standard deviation is already determined
-# for j in range(M):
-# 	V[j] = (V[j]- np.mean(V[j]))/np.std(V[j]) 
-# 	print(np.mean(V[j]))
-# 	print(np.std(V[j]))
 
+print("Generating ", K_d, "diverse teams")
 # determine the objective function, coefficients of the X_ijk which are just the V_ij's
 my_obj = np.array([V for _ in range(K_d)])
 my_obj = my_obj.flatten()
