@@ -30,6 +30,10 @@ W_slack = int(0.2 * W_d)
 
 ### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
 
+
+
+# first column is the participant's ID
+V = V[:, 1:]
 # Take the first half for the diverse LP
 V = V[:, 0:W_d]
 print("Number of participants in Diverse Teams:", V.shape[1])

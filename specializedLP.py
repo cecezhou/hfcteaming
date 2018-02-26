@@ -13,10 +13,10 @@ np.random.seed = 10
 import heapq
 
 
-data = pd.read_csv("simulatedDataCorrelated.csv")
+data = pd.read_csv("simulatedDataCorrelated1000.csv", header = 0)
 V = data.values
 M = V.shape[0]
-N = V.shape[1]
+N = V.shape[1] - 1
 print("Total Number of Participants:", N)
 
 
@@ -37,7 +37,10 @@ print("Number of Skills: ", M)
 
 ### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
 
-# Take the first half for the diverse LP
+
+# first column is the participant's ID
+V = V[:, 1:]
+# Take the second half for specialized LP
 V = V[:, W_d:]
 
 print(V.shape)
