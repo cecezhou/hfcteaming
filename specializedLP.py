@@ -11,9 +11,12 @@ import pandas as pd
 np.random.seed = 10
 
 import heapq
+# import time
 
+# start = time.time()
+TIMELIMIT = 100 
 
-data = pd.read_csv("simulatedDataCorrelated300.csv", header = 0)
+data = pd.read_csv("simulatedDataCorrelated200.csv", header = 0)
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
@@ -124,7 +127,6 @@ def populatebynonzero(prob):
     #         print(idx, rc)
     #     seen.add(rc)
 
-
     vals1 = [1.0, -G] * (M * K_s) 
     temp = [[[1.0] + [-V[j][i] for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     vals2 = flatten(flatten(temp))
@@ -139,10 +141,7 @@ def populatebynonzero(prob):
 my_prob = cplex.Cplex()
 handle = populatebynonzero(my_prob)
 
-
-print("done generating")
-
-
+my_prob.parameters.timelimit.set(TIMELIMIT)
 my_prob.solve()
 
 print("Solution status = ", my_prob.solution.get_status(), ":", end=' ')
@@ -151,14 +150,46 @@ print(my_prob.solution.status[my_prob.solution.get_status()])
 print("Solution value  = ", my_prob.solution.get_objective_value())
 
 numcols = my_prob.variables.get_num()
+print("Number of Variables", numcols)
 numrows = my_prob.linear_constraints.get_num()
 
 slack = my_prob.solution.get_linear_slacks()
 x = my_prob.solution.get_values()
 
-for j in range(numrows):
-    print("Row %d:  Slack = %10f" % (j, slack[j]))
-for j in range(numcols):
-    print("Column %d:  Value = %10f" % (j, x[j]))
+#### TODOTODOTODO
+### slack + G
+### we want to use Q_jk to find which W_kj to use then get value of first kj slack values,
+### and add G to them to get value of the team for the skill that was chosen, also print which skill
+team_values = np.array(slack[:K_s * M])
+team_values = team_values.reshape(K_s, M)
+team_values_out = np.transpose(np.nonzero(team_values))
+df_team_values = pd.DataFrame(team_values_out)
+df_team_values.to_csv("specializedTeamValues" + str(N) + ".csv")
+
+# for j in range(numrows):
+#     print("Row %d:  Slack = %10f" % (j, slack[j]))
+
+team_assigns = x[K_s * M * 2:]
+team_assigns = np.array(team_assigns)
+team_assigns = team_assigns.reshape(W_s, K_s)
+nonzeros = []
+for i in range(W_s):
+    for j in range(K_s):
+        if team_assigns[i,j] >= 0.5:
+            nonzeros.append([i,j])
+
+
+# df_team_assigns = pd.DataFrame(team_assigns_out)
+### NOTE THAT all indices must add # of diverse participants
+# df_team_assigns.to_csv("specializedAssignments" + str(N) + ".csv")
+
+
+# for assign in team_assigns:
+#     print("Column %d:  Value = %10f" % (j, x[j]))
+
 
 ##### Save as pkl then read in the other file!! :) 
+
+
+
+

@@ -12,12 +12,12 @@ import pandas as pd
 ## Read in Data 
 
 
-data = pd.read_csv("simulatedDataCorrelated.csv")
+data = pd.read_csv("simulatedDataCorrelated300.csv")
 V = data.values
 M = V.shape[0]
 N = V.shape[1]
 print("Total Number of Participants:", N)
-
+TIMELIMIT = 65
 
 Q = 10 # number of people per desired team
 W_d = int(N/2) 
@@ -85,8 +85,8 @@ def populatebynonzero(prob):
     rows4 = [[W_d + (M)* K_d + K_d + rownum]  * (W_slack * (M+1)) for rownum in range(K_d)]
 
     rows = [rows1, rows2, rows3, rows4]
-    for r in rows:
-        printshape(r)
+    # for r in rows:
+    #     printshape(r)
     rows = flatten(flatten(rows))
     print(len(rows))
 
@@ -98,8 +98,8 @@ def populatebynonzero(prob):
     cols4 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_reg, W_reg + W_slack)] for j in range(M + 1)] for k in range(K_d)] 
 
     cols = [cols1, cols2, cols3, cols4]
-    for c in cols:
-        printshape(c)
+    # for c in cols:
+    #     printshape(c)
     cols = flatten(flatten(flatten(cols)))
     print(len(cols))
 
@@ -116,11 +116,7 @@ def populatebynonzero(prob):
 
 my_prob = cplex.Cplex()
 handle = populatebynonzero(my_prob)
-
-
-print("done generating")
-
-
+my_prob.parameters.timelimit.set(TIMELIMIT)
 my_prob.solve()
 
 print("Solution status = ", my_prob.solution.get_status(), ":", end=' ')
@@ -136,7 +132,32 @@ x = my_prob.solution.get_values()
 
 # for j in range(numrows):
 #     print("Row %d:  Slack = %10f" % (j, slack[j]))
-for j in range(numcols):
-    print("Column %d:  Value = %10f" % (j, x[j]))
+# for j in range(numcols):
+#     print("Column %d:  Value = %10f" % (j, x[j]))
+
+
+# team_values = np.array(slack[:K_d * M])
+# team_values = team_values.reshape(K_d, M)
+# team_values_out = np.transpose(np.nonzero(team_values))
+# df_team_values = pd.DataFrame(team_values_out)
+# df_team_values.to_csv("diverseTeamValues" + str(N) + ".csv")
+
+# for j in range(numrows):
+#     print("Row %d:  Slack = %10f" % (j, slack[j]))
+
+# team_assigns = x[K_d * M * 2:]
+# team_assigns = np.array(team_assigns)
+# team_assigns = team_assigns.reshape(W_s, K_s)
+# nonzeros = []
+# for i in range(W_s):
+#     for j in range(K_s):
+#         if team_assigns[i,j] >= 0.5:
+#             nonzeros.append([i,j])
+
+
+# df_team_assigns = pd.DataFrame(team_assigns_out)
+# ### NOTE THAT all indices must add # of diverse participants
+# df_team_assigns.to_csv("diverseAssignments" + str(N) + ".csv")
+
 
 ##### Save as pkl then read in the other file!! :) 
