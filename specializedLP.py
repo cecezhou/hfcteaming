@@ -16,7 +16,7 @@ import heapq
 # start = time.time()
 TIMELIMIT = 100 
 
-data = pd.read_csv("simulatedDataCorrelated200.csv", header = 0)
+data = pd.read_csv("simulatedDataIndependent200.csv", header = 0)
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
@@ -97,10 +97,10 @@ def populatebynonzero(prob):
     rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_reg) for rownum in range(K_s)]
     rows6 = [[K_s * M * 2 + K_s + W_s + K_s + rownum] * (W_slack) for rownum in range(K_s)]
 
-
     rows = [rows1, rows2, rows3, rows4, rows5, rows6]
-    # for r in rows:
-    #     printshape(r)
+    print("ROWSSHAPE")
+    for r in rows:
+        printshape(r)
     
     rows = flatten(flatten(rows))
 
@@ -113,8 +113,10 @@ def populatebynonzero(prob):
     cols5 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg)] for k in range(K_s)]
     cols6 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_s)]
 
-    cols = [cols1, cols2, cols3, cols4, cols5, cols6] 
-
+    cols = [cols1, cols2, cols3, cols4, cols5, cols6]
+    print("COLSHAPES")
+    for c in cols:
+        printshape(c)
     cols = flatten(flatten(cols))
 
     assert(len(cols) == len(rows))
@@ -126,17 +128,20 @@ def populatebynonzero(prob):
     #     if rc in seen:
     #         print(idx, rc)
     #     seen.add(rc)
-
+    print("VALSHAPES")
     vals1 = [1.0, -G] * (M * K_s) 
+    printshape(vals1)
     temp = [[[1.0] + [-V[j][i] for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     vals2 = flatten(flatten(temp))
+    printshape(vals2)
     vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * (W_reg + W_slack))
+    print("1.0", K_s * M + K_s * W_s)
+    print("-1.0", (K_s * (W_reg + W_slack)))
     vals = flatten([vals1,vals2, vals3])
     assert(len(vals) == len(rows))
     # print(list(zip(rows, cols, vals)))
     prob.linear_constraints.set_coefficients(zip(rows, cols, vals))
  	
-
 
 my_prob = cplex.Cplex()
 handle = populatebynonzero(my_prob)
@@ -162,26 +167,30 @@ x = my_prob.solution.get_values()
 ### and add G to them to get value of the team for the skill that was chosen, also print which skill
 team_values = np.array(slack[:K_s * M])
 team_values = team_values.reshape(K_s, M)
-team_values_out = np.transpose(np.nonzero(team_values))
+team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0][0]] for idx, team in enumerate(team_values)]
 df_team_values = pd.DataFrame(team_values_out)
-df_team_values.to_csv("specializedTeamValues" + str(N) + ".csv")
+df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
 
 # for j in range(numrows):
 #     print("Row %d:  Slack = %10f" % (j, slack[j]))
 
 team_assigns = x[K_s * M * 2:]
 team_assigns = np.array(team_assigns)
-team_assigns = team_assigns.reshape(W_s, K_s)
+team_assigns = team_assigns.reshape(K_s, W_s)
+# team_assigns_out = np.transpose(np.nonzero(team_assigns))
+
 nonzeros = []
-for i in range(W_s):
-    for j in range(K_s):
+for i in range(K_s):
+    for j in range(W_s):
         if team_assigns[i,j] >= 0.5:
             nonzeros.append([i,j])
+assert(len(nonzeros) == W_s)
+a = [b[1] for b in nonzeros]
+assert(len(set(a)) == len(nonzeros))
 
-
-# df_team_assigns = pd.DataFrame(team_assigns_out)
-### NOTE THAT all indices must add # of diverse participants
-# df_team_assigns.to_csv("specializedAssignments" + str(N) + ".csv")
+df_team_assigns = pd.DataFrame(nonzeros)
+## NOTE THAT all indices must add # of diverse participants
+df_team_assigns.to_csv("IndspecializedAssignments" + str(N) + ".csv")
 
 
 # for assign in team_assigns:
