@@ -11,7 +11,7 @@ import pandas as pd
 from scipy.stats import percentileofscore
 
 M = 15
-W = 300	
+W = 200	
 
 
 # M by W_d matrix, rows are skills

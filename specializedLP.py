@@ -13,7 +13,7 @@ np.random.seed = 10
 import heapq
 
 
-data = pd.read_csv("simulatedDataCorrelated1000.csv", header = 0)
+data = pd.read_csv("simulatedDataCorrelated300.csv", header = 0)
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
@@ -70,8 +70,8 @@ print(G)
 my_ctype = "C" * (K_s * M) + "B" * (K_s * M + W_s * K_s)
 # NOTE: in the nonzero populate function we don't need the column or row name
 ## TODO RHS
-my_rhs = [0] * (2 * K_s * M ) + [1]* (W_s + K_s) + [-Q] * K_s
-my_sense = "L" * (2 * K_s * M) + "E"*(W_s + K_s) + "L" * K_s
+my_rhs = [0] * (2 * K_s * M ) + [1]* (W_s + K_s) + [-Q_reg] * K_s + [-Q_slack] * K_s
+my_sense = "L" * (2 * K_s * M) + "E"*(W_s + K_s) + "L" * (K_s * 2)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
 # print(len(my_sense))
@@ -91,9 +91,11 @@ def populatebynonzero(prob):
     rows2 = flatten(rows2)
     rows3 = [[K_s * M * 2 + rownum]  * (M) for rownum in range(K_s)]
     rows4 = [[K_s * M * 2 + K_s + rownum] * (K_s) for rownum in range(W_s)]
-    rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_s) for rownum in range(K_s)]
+    rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_reg) for rownum in range(K_s)]
+    rows6 = [[K_s * M * 2 + K_s + W_s + K_s + rownum] * (W_slack) for rownum in range(K_s)]
 
-    rows = [rows1, rows2, rows3, rows4, rows5]
+
+    rows = [rows1, rows2, rows3, rows4, rows5, rows6]
     # for r in rows:
     #     printshape(r)
     
@@ -105,8 +107,10 @@ def populatebynonzero(prob):
     cols2 = flatten(cols2)
     cols3 = [[K_s * M + k * M + j for j in range(M)] for k in range(K_s)]
     cols4 = [[K_s * M  * 2 + k * W_s + i for k in range(K_s)] for i in range(W_s)]
-    cols5 = [[K_s * M  * 2 + k * W_s + i for i in range(W_s)] for k in range(K_s)]
-    cols = [cols1, cols2, cols3, cols4, cols5] 
+    cols5 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg)] for k in range(K_s)]
+    cols6 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_s)]
+
+    cols = [cols1, cols2, cols3, cols4, cols5, cols6] 
 
     cols = flatten(flatten(cols))
 
@@ -124,7 +128,7 @@ def populatebynonzero(prob):
     vals1 = [1.0, -G] * (M * K_s) 
     temp = [[[1.0] + [-V[j][i] for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     vals2 = flatten(flatten(temp))
-    vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_s)
+    vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * (W_reg + W_slack))
     vals = flatten([vals1,vals2, vals3])
     assert(len(vals) == len(rows))
     # print(list(zip(rows, cols, vals)))
