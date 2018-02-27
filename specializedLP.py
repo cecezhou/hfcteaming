@@ -11,9 +11,7 @@ import pandas as pd
 np.random.seed = 10
 
 import heapq
-# import time
 
-# start = time.time()
 TIMELIMIT = 100 
 
 data = pd.read_csv("simulatedDataIndependent200.csv", header = 0)
@@ -161,14 +159,11 @@ numrows = my_prob.linear_constraints.get_num()
 slack = my_prob.solution.get_linear_slacks()
 x = my_prob.solution.get_values()
 
-#### TODOTODOTODO
-### slack + G
-### we want to use Q_jk to find which W_kj to use then get value of first kj slack values,
-### and add G to them to get value of the team for the skill that was chosen, also print which skill
+### -slack + G is the team value, nonzero value is the skill that is assigned to that team
 team_values = np.array(slack[:K_s * M])
 team_values = team_values.reshape(K_s, M)
 team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0][0]] for idx, team in enumerate(team_values)]
-df_team_values = pd.DataFrame(team_values_out)
+df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
 df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
 
 # for j in range(numrows):
@@ -188,7 +183,7 @@ assert(len(nonzeros) == W_s)
 a = [b[1] for b in nonzeros]
 assert(len(set(a)) == len(nonzeros))
 
-df_team_assigns = pd.DataFrame(nonzeros)
+df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
 ## NOTE THAT all indices must add # of diverse participants
 df_team_assigns.to_csv("IndspecializedAssignments" + str(N) + ".csv")
 

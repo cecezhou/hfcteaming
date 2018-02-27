@@ -10,8 +10,6 @@ import csv
 import pandas as pd
 
 ## Read in Data 
-
-
 data = pd.read_csv("simulatedDataCorrelated300.csv")
 V = data.values
 M = V.shape[0]
@@ -19,18 +17,17 @@ N = V.shape[1]
 print("Total Number of Participants:", N)
 TIMELIMIT = 65
 
-Q = 10 # number of people per desired team
+Q = 12 # number of people per desired team
 W_d = int(N/2) 
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
 Q_reg = int(0.8 *  Q)
 Q_slack = int(0.2 * Q)
 W_reg = int(0.8 * W_d)
 W_slack = int(0.2 * W_d)
-
+s = 1.0
+r = 1.0
 
 ### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
-
-
 
 # first column is the participant's ID
 V = V[:, 1:]
@@ -44,27 +41,26 @@ print("Number of participants in Diverse Teams:", V.shape[1])
 #   print(np.std(V[j]))
 
 
-# add a dummy skill
-## we need VIJ to be sorted by non slackers first, then slackers
-V = np.append(V, [[0]*W_d], axis = 0)
-
+# we need VIJ to be sorted by non slackers first, then slackers
+# let W_reg and W_slack be the number of each respectively
+# no longer need adding dummy skill // V = np.append(V, [[0]*W_d], axis = 0)
 
 print("Generating ", K_d, "diverse teams")
-# determine the objective function, coefficients of the X_ijk which are just the V_ij's
+# max_x  \sum_{i \in W_d} \sum_{j\in M} \sum_{k \in K_d} x_{ijk} v_{ij}
 my_obj = np.array([V for _ in range(K_d)])
 my_obj = my_obj.flatten()
-num_vars = W_d * K_d * (M + 1)
+my_obj = np.append(my_obj, [0.0] * (W_d * K_d))
+
+num_vars = W_d * K_d * M + W_d * K_d
 my_ub = [1.0] * num_vars
 my_lb = [0.0] * num_vars
 assert(len(my_ub) == len(my_obj))
 
-# ## String with possible char values 'B','I','C','S','N'; set ctype(j) to 
-# ## 'B', 'I','C', 'S', or 'N' to indicate that x(j) should be binary, general integer, 
-# ## continuous, semi-continuous or semi-integer (respectively).
+
 my_ctype = "I" * num_vars
-# NOTE: in the nonzero populate function we don't need the column or row name
-my_rhs = [1.0] * (int(N/2)  +  (M) * K_d) + [-Q_reg] * K_d + [-Q_slack] * K_d
-my_sense = "E" * (int(N/2)) + "L" * ((M)* K_d + 2 * K_d)
+# RHS 
+my_rhs = [1.0] * W_d + [s] * W_d + [0.0] * (W_d * M * K_d) + [r] * (M * K_d) + [-Q_reg] * K_d + [-Q_slack] * K_d
+my_sense = "E" * W_d + "L" * (W_d  + W_d * M * K_d + M * K_d + 2 * K_d)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
 print(len(my_sense))
@@ -78,34 +74,52 @@ def populatebynonzero(prob):
     prob.linear_constraints.add(rhs=my_rhs, senses=my_sense)
     prob.variables.add(obj=my_obj, lb=my_lb, ub=my_ub, types=my_ctype)
 
-    rows1 = [[i] * ((M + 1)* K_d) for i in range(W_d)]
-    # dummy skill not constrained here
-    rows2 = [[W_d + rownum] * (W_d) for rownum in range((M)* K_d)]
-    rows3 = [[W_d + (M)* K_d + rownum]  * (W_reg * (M+1)) for rownum in range(K_d)]
-    rows4 = [[W_d + (M)* K_d + K_d + rownum]  * (W_slack * (M+1)) for rownum in range(K_d)]
+    # \sum_{k\in K_d} x_{ik}=1, for all i\in W_d # {assign each person to a team}
+    rows1 = [[i] * K_d for i in range(W_d)]
+    # \sum_{j \in M} \sum_{k\in K_d} x_{ijk} <= s , for all i \in W_d # {assign each person to at most s sklls}
+    rows2 = [[W_d + rownum] * (M * K_d) for rownum in range(W_d)]
+    # x_{ijk} <= x_{ik}, for all i, all j, all k # {only credit a skill if i is on a team}
+    rows3 = [[W_d * 2 + rownum] * 2 for rownum in range(W_d * M * K_d)]
+    # \sum_{i \in U} x_{ijk} <= r, for all j \in M, for all k \in K {credit each real skill at most r times per team}
+    rows4 = [[W_d * 2 + W_d * M * K_d + rownum] * (W_d) for rownum in range(M* K_d)]
+    # \sum_{i \in U_reg} x_{ik} >= Q_reg, for all k \in K  {enough non-slackers per team}
+    rows5 = [[W_d * 2 + W_d * M * K_d + M* K_d + rownum]  * (W_reg) for rownum in range(K_d)]
+    # \sum_{i \in U_slack} x_{ik} >= Q_slack, for all k \in K  {enough slackers per team}
+    rows6 = [[W_d * 2 + W_d * M * K_d + M* K_d + K_d + rownum]  * (W_slack) for rownum in range(K_d)]
 
-    rows = [rows1, rows2, rows3, rows4]
-    # for r in rows:
-    #     printshape(r)
+    rows = [rows1, rows2, rows3, rows4, rows5, rows6]
+    for r in rows:
+        printshape(r)
     rows = flatten(flatten(rows))
     print(len(rows))
 
+    # \sum_{k\in K} x_{ik}=1, for all i\in W_d {assign each person to a team}
+    cols1 = [[W_d * M * K_d + W_d * k + i for k in range(K_d)] for i in range(W_d)]
+    # \sum_{j \in M} \sum_{k\in K} x_{ijk} <= s , for all i \in W_d {assign each person to at most s sklls}
+    cols2 = [[[W_d * M * k + W_d * j + i for k in range(K_d)] for j in range(M)] for i in range(W_d)]
+    # x_{ijk} <= x_{ik}, for all i, all j, all k # {only credit a skill if i is on a team}
+    # the ordering of these rows will be k,j,i if reshaped
+    cols3 = [[[[W_d * M * k + W_d * j + i, W_d * M * K_d + W_d * k + i] for i in range(W_d)] for j in range(M)] for k in range(K_d)]
+    
+    # \sum_{i \in W_d} x_{ijk} <= r, for all j \in M, for all k \in K {credit each real skill at most r times per team}
+    cols4 = [[[W_d * M * k + W_d * j + i for i in range(W_d)] for k in range(K_d)] for j in range(M)]
 
-    cols1 = [[[int(N/2) * (M + 1) * k + int(N/2) * j + i for j in range(M + 1)] for k in range(K_d)] for i in range(int(N/2))]
-    # dummy skill not constrained here
-    cols2 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(int(N/2))] for k in range(K_d)] for j in range(M)]
-    cols3 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_reg)] for j in range(M + 1)] for k in range(K_d)] 
-    cols4 = [[[(M + 1) * int(N/2) * k + int(N/2) * j + i for i in range(W_reg, W_reg + W_slack)] for j in range(M + 1)] for k in range(K_d)] 
+    # \sum_{i \in W_reg} x_{ik} >= Q_reg, for all k \in K  {enough non-slackers per team}
+    cols5 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg)] for k in range(K_d)]
+    # \sum_{i \in W_slack} x_{ik} >= Q_slack, for all k \in K  {enough slackers per team}
+    cols6 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_d)]
 
-    cols = [cols1, cols2, cols3, cols4]
-    # for c in cols:
-    #     printshape(c)
-    cols = flatten(flatten(flatten(cols)))
+    cols2 = flatten(cols2); cols3 = flatten(flatten(cols3)); cols4 = flatten(cols4)
+    cols = [cols1, cols2, cols3, cols4, cols5, cols6]
+    for c in cols:
+        printshape(c)
+    cols = flatten(flatten(cols))
     print(len(cols))
 
     assert(len(cols) == len(rows))
     print("Vals len:")
-    vals = [1.0] * (W_d * (2*M + 1) * K_d) + [-1.0] * ((W_reg + W_slack) * (M+1) * K_d)
+    vals = [1.0] * (K_d * W_d + K_d * M * W_d) + [1.0, -1.0] * (K_d * 
+                W_d * M) + [1.0] * (W_d * K_d * M) + [-1.0] * ((W_reg + W_slack) * K_d)
     print(len(vals))
 
     coeffs = zip(rows, cols, vals)
