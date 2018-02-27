@@ -8,14 +8,16 @@ import numpy as np
 import random
 import csv
 import pandas as pd
+import seaborn as sns; sns.set()
+import matplotlib.pyplot as plt
 
 ## Read in Data 
 data = pd.read_csv("simulatedDataCorrelated300.csv")
 V = data.values
 M = V.shape[0]
-N = V.shape[1]
-print("Total Number of Participants:", N)
-TIMELIMIT = 65
+N = V.shape[1] - 1
+print("Total Number of Participants:", N) ### optimal is 909 when there is time limit of 1000
+TIMELIMIT = 1000
 
 Q = 12 # number of people per desired team
 W_d = int(N/2) 
@@ -24,8 +26,8 @@ Q_reg = int(0.8 *  Q)
 Q_slack = int(0.2 * Q)
 W_reg = int(0.8 * W_d)
 W_slack = int(0.2 * W_d)
-s = 1.0
-r = 1.0
+s = 2
+r = 2
 
 ### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
 
@@ -88,10 +90,10 @@ def populatebynonzero(prob):
     rows6 = [[W_d * 2 + W_d * M * K_d + M* K_d + K_d + rownum]  * (W_slack) for rownum in range(K_d)]
 
     rows = [rows1, rows2, rows3, rows4, rows5, rows6]
-    for r in rows:
-        printshape(r)
+    # for r in rows:
+    #     printshape(r)
     rows = flatten(flatten(rows))
-    print(len(rows))
+    # print(len(rows))
 
     # \sum_{k\in K} x_{ik}=1, for all i\in W_d {assign each person to a team}
     cols1 = [[W_d * M * K_d + W_d * k + i for k in range(K_d)] for i in range(W_d)]
@@ -100,10 +102,8 @@ def populatebynonzero(prob):
     # x_{ijk} <= x_{ik}, for all i, all j, all k # {only credit a skill if i is on a team}
     # the ordering of these rows will be k,j,i if reshaped
     cols3 = [[[[W_d * M * k + W_d * j + i, W_d * M * K_d + W_d * k + i] for i in range(W_d)] for j in range(M)] for k in range(K_d)]
-    
     # \sum_{i \in W_d} x_{ijk} <= r, for all j \in M, for all k \in K {credit each real skill at most r times per team}
     cols4 = [[[W_d * M * k + W_d * j + i for i in range(W_d)] for k in range(K_d)] for j in range(M)]
-
     # \sum_{i \in W_reg} x_{ik} >= Q_reg, for all k \in K  {enough non-slackers per team}
     cols5 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg)] for k in range(K_d)]
     # \sum_{i \in W_slack} x_{ik} >= Q_slack, for all k \in K  {enough slackers per team}
@@ -111,16 +111,16 @@ def populatebynonzero(prob):
 
     cols2 = flatten(cols2); cols3 = flatten(flatten(cols3)); cols4 = flatten(cols4)
     cols = [cols1, cols2, cols3, cols4, cols5, cols6]
-    for c in cols:
-        printshape(c)
+    # for c in cols:
+    #     printshape(c)
     cols = flatten(flatten(cols))
-    print(len(cols))
+    # print(len(cols))
 
     assert(len(cols) == len(rows))
-    print("Vals len:")
+    # print("Vals len:")
     vals = [1.0] * (K_d * W_d + K_d * M * W_d) + [1.0, -1.0] * (K_d * 
                 W_d * M) + [1.0] * (W_d * K_d * M) + [-1.0] * ((W_reg + W_slack) * K_d)
-    print(len(vals))
+    # print(len(vals))
 
     coeffs = zip(rows, cols, vals)
     prob.linear_constraints.set_coefficients(coeffs)
@@ -144,34 +144,55 @@ numrows = my_prob.linear_constraints.get_num()
 slack = my_prob.solution.get_linear_slacks()
 x = my_prob.solution.get_values()
 
-# for j in range(numrows):
-#     print("Row %d:  Slack = %10f" % (j, slack[j]))
-# for j in range(numcols):
-#     print("Column %d:  Value = %10f" % (j, x[j]))
+### Visualize Solution and Save Output
+team_assigns = x[K_d * M * W_d:]
+team_assigns = np.array(team_assigns).reshape(K_d, W_d)
+nonzeros = []
+for i in range(K_d):
+    for j in range(W_d):
+        if team_assigns[i,j] >= 0.5:
+            nonzeros.append([i,j])
+
+df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
+### NOTE THAT all indices must add # of diverse participants
+df_team_assigns.to_csv("diverseAssignments" + str(N) + ".csv")
+team_assigns_dict = {}
+for k,i in nonzeros:
+    if k in team_assigns_dict:
+        team_assigns_dict[k].append(i)
+    else:
+        team_assigns_dict[k] = [i]
 
 
-# team_values = np.array(slack[:K_d * M])
-# team_values = team_values.reshape(K_d, M)
-# team_values_out = np.transpose(np.nonzero(team_values))
-# df_team_values = pd.DataFrame(team_values_out)
-# df_team_values.to_csv("diverseTeamValues" + str(N) + ".csv")
+XIJK = x[:K_d * M * W_d]
+XIJK = np.array(XIJK).reshape(K_d, M, W_d)
 
-# for j in range(numrows):
-#     print("Row %d:  Slack = %10f" % (j, slack[j]))
+# credited skills
+matrices = []
+for k,team in enumerate(XIJK):
+    team_members = team_assigns_dict[k]
+    matrix = []
+    for j, skill in enumerate(team):
+        matrix.append([(V[j,i] if skill[i] != 0 else 0) for i in team_members])
+    matrices.append(matrix)
 
-# team_assigns = x[K_d * M * 2:]
-# team_assigns = np.array(team_assigns)
-# team_assigns = team_assigns.reshape(W_s, K_s)
-# nonzeros = []
-# for i in range(W_s):
-#     for j in range(K_s):
-#         if team_assigns[i,j] >= 0.5:
-#             nonzeros.append([i,j])
+# even skills that aren't credited
+matrices_all = []
+for k,team in enumerate(XIJK):
+    team_members = team_assigns_dict[k]
+    matrix = []
+    for j, skill in enumerate(team):
+        matrix.append([(V[j,i] if skill[i] != 0 else 0) for i in team_members])
+    matrices_all.append(matrix)
+
+ax = sns.heatmap(matrices[0], annot = True)
+plt.show()
+ax = sns.heatmap(matrices_all[0], annot = True)
+plt.show()
 
 
-# df_team_assigns = pd.DataFrame(team_assigns_out)
-# ### NOTE THAT all indices must add # of diverse participants
-# df_team_assigns.to_csv("diverseAssignments" + str(N) + ".csv")
+
+## TOdo still need to look at specialized "value" to compare with specialized
 
 
 ##### Save as pkl then read in the other file!! :) 

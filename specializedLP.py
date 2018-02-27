@@ -8,13 +8,15 @@ import numpy as np
 import random
 import itertools
 import pandas as pd
-np.random.seed = 10
+# np.random.seed = 10
 
 import heapq
+import seaborn as sns; sns.set()
+import matplotlib.pyplot as plt
 
-TIMELIMIT = 100 
+TIMELIMIT = 1000 
 
-data = pd.read_csv("simulatedDataIndependent200.csv", header = 0)
+data = pd.read_csv("simulatedDataIndependent300.csv", header = 0)
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
@@ -53,25 +55,26 @@ print(V.shape)
 # 	print(np.mean(V[j]))
 # 	print(np.std(V[j]))
 
-# determine the objective function, coefficients of the X_ijk which are just the V_ij's
-my_obj = np.array([1.0]*(K_s * M) + [0.0] * (K_s * M + W_s * K_s))
-my_obj = my_obj.flatten()
-num_vars = 2* K_s * M  + W_s * K_s 
-my_ub = [cplex.infinity] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
-my_lb = [0.0] * num_vars
-# print("Number of Variables: ", num_vars)
-assert(len(my_ub) == len(my_obj))
-
+#
 G = max([sum(heapq.nlargest(Q, V[i])) for i in range(M)])
 
 print(G)
+my_obj = np.array([1.0]*(K_s * M) + [0.0] * (K_s * M + W_s * K_s))
+my_obj = my_obj.flatten()
+num_vars = 2* K_s * M  + W_s * K_s 
+my_ub = [G] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
+my_lb = [0.0] * num_vars
+# print("Number of Variables: ", num_vars)
+assert(len(my_ub) == len(my_obj))
+p = 1.0
+
 # G = Q
 
 
 my_ctype = "C" * (K_s * M) + "B" * (K_s * M + W_s * K_s)
 # NOTE: in the nonzero populate function we don't need the column or row name
 ## TODO RHS
-my_rhs = [0] * (2 * K_s * M ) + [1]* (W_s + K_s) + [-Q_reg] * K_s + [-Q_slack] * K_s
+my_rhs = [0] * (2 * K_s * M ) + [p]* K_s + [1] * W_s + [-Q_reg] * K_s + [-Q_slack] * K_s
 my_sense = "L" * (2 * K_s * M) + "E"*(W_s + K_s) + "L" * (K_s * 2)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
@@ -120,12 +123,6 @@ def populatebynonzero(prob):
     assert(len(cols) == len(rows))
 
     rowcol = list(zip(rows,cols))
-    # # print(len(rowcol) != len(set(rowcol)))
-    # seen = set([(50, 0), (51, 1), (52, 2), (53, 3), (54, 4)])
-    # for idx,rc in enumerate(rowcol):
-    #     if rc in seen:
-    #         print(idx, rc)
-    #     seen.add(rc)
     print("VALSHAPES")
     vals1 = [1.0, -G] * (M * K_s) 
     printshape(vals1)
@@ -166,13 +163,10 @@ team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0][0]] for idx, team i
 df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
 df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
 
-# for j in range(numrows):
-#     print("Row %d:  Slack = %10f" % (j, slack[j]))
 
 team_assigns = x[K_s * M * 2:]
 team_assigns = np.array(team_assigns)
 team_assigns = team_assigns.reshape(K_s, W_s)
-# team_assigns_out = np.transpose(np.nonzero(team_assigns))
 
 nonzeros = []
 for i in range(K_s):
@@ -187,10 +181,41 @@ df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
 ## NOTE THAT all indices must add # of diverse participants
 df_team_assigns.to_csv("IndspecializedAssignments" + str(N) + ".csv")
 
+## dictionary of team assignments
+team_assigns_dict = {}
+for k,i in nonzeros:
+    if k in team_assigns_dict:
+        team_assigns_dict[k].append(i)
+    else:
+        team_assigns_dict[k] = [i]
 
-# for assign in team_assigns:
-#     print("Column %d:  Value = %10f" % (j, x[j]))
+XKJ = x[K_s * M: 2 * K_s * M]
+XKJ = np.array(XKJ).reshape(K_s, M)
 
+# credited skills
+matrices = []
+for k,team in enumerate(XKJ):
+    team_members = team_assigns_dict[k]
+    matrix = []
+    for j, skill in enumerate(team):
+        matrix.append([(V[j,i] if skill == 1 else 0) for i in team_members])
+    matrices.append(matrix)
+
+ax = sns.heatmap(matrices[0], annot = True)
+plt.show()
+
+
+# all skills
+matrices_all = []
+for k,team in enumerate(XKJ):
+    team_members = team_assigns_dict[k]
+    matrix = []
+    for j, skill in enumerate(team):
+        matrix.append([(V[j,i]) for i in team_members])
+    matrices_all.append(matrix)
+
+ax = sns.heatmap(matrices_all[0], annot = True)
+plt.show()
 
 ##### Save as pkl then read in the other file!! :) 
 
