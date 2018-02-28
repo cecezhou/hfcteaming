@@ -180,7 +180,13 @@ if s == 1:
     ### -slack + G is the team value, nonzero value is the skill that is assigned to that team
     team_values = np.array(slack[:K_s * M])
     team_values = team_values.reshape(K_s, M)
-    team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0][0]] for idx, team in enumerate(team_values)]
+    if p == 1:
+        print([(idx,x) for idx, x in enumerate(team_values)])
+        team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
+    # else:
+    #     print([(idx,x) for idx, x in enumerate(team_values)])
+    #     team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
+
     df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
     df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
 
@@ -216,31 +222,39 @@ if s == 1:
 
 
     # credited skills
-    matrices = []
-    for k,team in enumerate(XKJ):
-        team_members = team_assigns_dict[k]
-        matrix = []
-        for j, skill in enumerate(team):
-            matrix.append([(V[j,i] if skill == 1 else 0) for i in team_members])
-        matrices.append(matrix)
+    for team_id in range(K_s):
+        matrices = []
+        for k,team in enumerate(XKJ):
+            team_members = team_assigns_dict[k]
+            matrix = []
+            for j, skill in enumerate(team):
+                matrix.append([(V[j,i] if skill == 1 else 0) for i in team_members])
+            matrices.append(matrix)
 
-    ax = sns.heatmap(matrices[0], annot = True)
-    plt.ylabel("Skills")
-    plt.show()
+        ax = sns.heatmap(matrices[team_id], annot = True)
+        plt.ylabel("Skills")
+        title = "Specialized_Team_Selected" + str(team_id) + "p=" + str(p)
+        plt.title(title)
+        plt.savefig(title)
+        plt.clf()
 
+    for team_id in range(K_s):
+        # all skills
+        matrices_all = []
+        for k,team in enumerate(XKJ):
+            team_members = team_assigns_dict[k]
+            matrix = []
+            for j, skill in enumerate(team):
+                matrix.append([(V[j,i]) for i in team_members])
+            matrices_all.append(matrix)
 
-    # all skills
-    matrices_all = []
-    for k,team in enumerate(XKJ):
-        team_members = team_assigns_dict[k]
-        matrix = []
-        for j, skill in enumerate(team):
-            matrix.append([(V[j,i]) for i in team_members])
-        matrices_all.append(matrix)
+        ax = sns.heatmap(matrices_all[team_id], annot = True)
+        plt.ylabel("Skills")
+        title = "Specialized_Team_All" + str(team_id) + "p=" + str(p)
+        plt.title(title)
+        plt.savefig(title)
+        plt.clf()
 
-    ax = sns.heatmap(matrices_all[0], annot = True)
-    plt.ylabel("Skills")
-    plt.show()
 
     ##### Save as pkl then read in the other file!! :) 
 

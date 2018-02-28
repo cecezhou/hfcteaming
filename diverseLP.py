@@ -11,30 +11,58 @@ import pandas as pd
 import seaborn as sns; sns.set()
 import matplotlib.pyplot as plt
 
+
+
+def getopts(argv):
+    opts = {}  # Empty dictionary to store key-value pairs.
+    while argv:  # While there are arguments left to parse...
+        if argv[0][0] == '-':  # Found a "-name value" pair.
+            opts[argv[0]] = argv[1]  # Add key and value to the dictionary.
+        argv = argv[1:]  # Reduce the argument list by copying it starting from index 1.
+    return opts
+
+
+from sys import argv
+myargs = getopts(argv)
+## -t is time limit, -p is p, -Q is number of people, -s is store values and make graphs
+
+
+TIMELIMIT = int(myargs["-t"])
+s = int(myargs["-s"])
+r = int(myargs["-r"])
+Q = int(myargs["-Q"])# number of people per desired team
+# s = int(myargs["-s"])
+data = str(myargs["-input"])
+print(TIMELIMIT, s, r, Q)
+
+# TIMELIMIT = 1000
+# s = 2
+# r = 2
+
+
+
 ## Read in Data 
-data = pd.read_csv("simulatedDataCorrelated300.csv")
+data = pd.read_csv(data, header = 0)
+
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
 print("Total Number of Participants:", N) ### optimal is 909 when there is time limit of 1000
-TIMELIMIT = 1000
 
-Q = 12 # number of people per desired team
 W_d = int(N/2) 
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
 Q_reg = int(0.8 *  Q)
 Q_slack = int(0.2 * Q)
 W_reg = int(0.8 * W_d)
 W_slack = int(0.2 * W_d)
-s = 2
-r = 2
+
 
 ### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
 
 # first column is the participant's ID
 V = V[:, 1:]
-# Take the first half for the diverse LP
-V = V[:, 0:W_d]
+# Take the first half for the diverse LP ### TEMPORARILY ALSO TAKE 2nd HALF FOR LP
+V = V[:, W_d:]
 print("Number of participants in Diverse Teams:", V.shape[1])
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
 # for j in range(M):
@@ -168,27 +196,39 @@ XIJK = x[:K_d * M * W_d]
 XIJK = np.array(XIJK).reshape(K_d, M, W_d)
 
 # credited skills
-matrices = []
-for k,team in enumerate(XIJK):
-    team_members = team_assigns_dict[k]
-    matrix = []
-    for j, skill in enumerate(team):
-        matrix.append([(V[j,i] if skill[i] != 0 else 0) for i in team_members])
-    matrices.append(matrix)
+for team_id in range(K_d):
+    matrices = []
+    for k,team in enumerate(XIJK):
+        team_members = team_assigns_dict[k]
+        matrix = []
+        for j, skill in enumerate(team):
+            matrix.append([(V[j,i] if skill[i] != 0 else 0) for i in team_members])
+        matrices.append(matrix)
 
-# even skills that aren't credited
-matrices_all = []
-for k,team in enumerate(XIJK):
-    team_members = team_assigns_dict[k]
-    matrix = []
-    for j, skill in enumerate(team):
-        matrix.append([(V[j,i] if skill[i] != 0 else 0) for i in team_members])
-    matrices_all.append(matrix)
+    ax = sns.heatmap(matrices[team_id], annot = True)
+    plt.ylabel("Skills")
+    title = "Diverse_Team_Selected" + str(team_id) + "s=" + str(s) + "r=" + str(r)
+    plt.title(title)
+    plt.savefig(title)
+    plt.clf()
 
-ax = sns.heatmap(matrices[0], annot = True)
-plt.show()
-ax = sns.heatmap(matrices_all[0], annot = True)
-plt.show()
+for team_id in range(K_d):
+    # even skills that aren't credited
+    matrices_all = []
+    for k,team in enumerate(XIJK):
+        team_members = team_assigns_dict[k]
+        matrix = []
+        for j, skill in enumerate(team):
+            matrix.append([(V[j,i]) for i in team_members])
+        matrices_all.append(matrix)
+
+    ax = sns.heatmap(matrices_all[team_id], annot = True)
+    plt.ylabel("Skills")
+    title = "Diverse_Team_All" + str(team_id) + "s=" + str(s) + "r=" + str(r)
+    plt.title(title)
+    plt.savefig(title)
+    plt.clf()
+
 
 
 
