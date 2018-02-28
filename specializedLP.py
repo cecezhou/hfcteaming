@@ -14,16 +14,35 @@ import heapq
 import seaborn as sns; sns.set()
 import matplotlib.pyplot as plt
 
-TIMELIMIT = 1000 
 
-data = pd.read_csv("simulatedDataIndependent300.csv", header = 0)
+def getopts(argv):
+    opts = {}  # Empty dictionary to store key-value pairs.
+    while argv:  # While there are arguments left to parse...
+        if argv[0][0] == '-':  # Found a "-name value" pair.
+            opts[argv[0]] = argv[1]  # Add key and value to the dictionary.
+        argv = argv[1:]  # Reduce the argument list by copying it starting from index 1.
+    return opts
+
+
+from sys import argv
+myargs = getopts(argv)
+## -t is time limit, -p is p, -Q is number of people, -s is store values and make graphs
+
+
+TIMELIMIT = int(myargs["-t"])
+p = int(myargs["-p"])
+Q = int(myargs["-Q"])# number of people per desired team
+s = int(myargs["-s"])
+data = str(myargs["-input"])
+print(TIMELIMIT, p, Q)
+
+
+data = pd.read_csv(data, header = 0)
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
 print("Total Number of Participants:", N)
 
-
-Q = 10 # number of people per desired team
 W_d = int(N/2) 
 K_d = int(np.floor(W_d/ Q)) # number of diverse teams
 Q_reg = int(0.8 *  Q)
@@ -46,7 +65,7 @@ V = V[:, 1:]
 # Take the second half for specialized LP
 V = V[:, W_d:]
 
-print(V.shape)
+# print(V.shape)
 
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
@@ -58,7 +77,7 @@ print(V.shape)
 #
 G = max([sum(heapq.nlargest(Q, V[i])) for i in range(M)])
 
-print(G)
+print("G", G)
 my_obj = np.array([1.0]*(K_s * M) + [0.0] * (K_s * M + W_s * K_s))
 my_obj = my_obj.flatten()
 num_vars = 2* K_s * M  + W_s * K_s 
@@ -66,7 +85,6 @@ my_ub = [G] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
 my_lb = [0.0] * num_vars
 # print("Number of Variables: ", num_vars)
 assert(len(my_ub) == len(my_obj))
-p = 1.0
 
 # G = Q
 
@@ -99,9 +117,9 @@ def populatebynonzero(prob):
     rows6 = [[K_s * M * 2 + K_s + W_s + K_s + rownum] * (W_slack) for rownum in range(K_s)]
 
     rows = [rows1, rows2, rows3, rows4, rows5, rows6]
-    print("ROWSSHAPE")
-    for r in rows:
-        printshape(r)
+    # print("ROWSSHAPE")
+    # for r in rows:
+    #     printshape(r)
     
     rows = flatten(flatten(rows))
 
@@ -115,20 +133,20 @@ def populatebynonzero(prob):
     cols6 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_s)]
 
     cols = [cols1, cols2, cols3, cols4, cols5, cols6]
-    print("COLSHAPES")
-    for c in cols:
-        printshape(c)
+    # print("COLSHAPES")
+    # for c in cols:
+    #     printshape(c)
     cols = flatten(flatten(cols))
 
     assert(len(cols) == len(rows))
 
     rowcol = list(zip(rows,cols))
-    print("VALSHAPES")
+    # print("VALSHAPES")
     vals1 = [1.0, -G] * (M * K_s) 
-    printshape(vals1)
+    # printshape(vals1)
     temp = [[[1.0] + [-V[j][i] for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     vals2 = flatten(flatten(temp))
-    printshape(vals2)
+    # printshape(vals2)
     vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * (W_reg + W_slack))
     print("1.0", K_s * M + K_s * W_s)
     print("-1.0", (K_s * (W_reg + W_slack)))
@@ -147,78 +165,84 @@ my_prob.solve()
 print("Solution status = ", my_prob.solution.get_status(), ":", end=' ')
 # the following line prints the corresponding string
 print(my_prob.solution.status[my_prob.solution.get_status()])
-print("Solution value  = ", my_prob.solution.get_objective_value())
+print("Objective value  = ", my_prob.solution.get_objective_value())
 
 numcols = my_prob.variables.get_num()
-print("Number of Variables", numcols)
+# print("Number of Variables", numcols)
 numrows = my_prob.linear_constraints.get_num()
 
 slack = my_prob.solution.get_linear_slacks()
 x = my_prob.solution.get_values()
 
-### -slack + G is the team value, nonzero value is the skill that is assigned to that team
-team_values = np.array(slack[:K_s * M])
-team_values = team_values.reshape(K_s, M)
-team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0][0]] for idx, team in enumerate(team_values)]
-df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
-df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
+
+## s is whether to store values or not 
+if s == 1:
+    ### -slack + G is the team value, nonzero value is the skill that is assigned to that team
+    team_values = np.array(slack[:K_s * M])
+    team_values = team_values.reshape(K_s, M)
+    team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0][0]] for idx, team in enumerate(team_values)]
+    df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
+    df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
 
 
-team_assigns = x[K_s * M * 2:]
-team_assigns = np.array(team_assigns)
-team_assigns = team_assigns.reshape(K_s, W_s)
+    team_assigns = x[K_s * M * 2:]
+    team_assigns = np.array(team_assigns)
+    team_assigns = team_assigns.reshape(K_s, W_s)
 
-nonzeros = []
-for i in range(K_s):
-    for j in range(W_s):
-        if team_assigns[i,j] >= 0.5:
-            nonzeros.append([i,j])
-assert(len(nonzeros) == W_s)
-a = [b[1] for b in nonzeros]
-assert(len(set(a)) == len(nonzeros))
+    nonzeros = []
+    for i in range(K_s):
+        for j in range(W_s):
+            if team_assigns[i,j] >= 0.5:
+                nonzeros.append([i,j])
+    assert(len(nonzeros) == W_s)
+    a = [b[1] for b in nonzeros]
+    assert(len(set(a)) == len(nonzeros))
 
-df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
-## NOTE THAT all indices must add # of diverse participants
-df_team_assigns.to_csv("IndspecializedAssignments" + str(N) + ".csv")
+    df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
+    ## NOTE THAT all indices must add # of diverse participants
+    df_team_assigns.to_csv("IndspecializedAssignments" + str(N) + ".csv")
 
-## dictionary of team assignments
-team_assigns_dict = {}
-for k,i in nonzeros:
-    if k in team_assigns_dict:
-        team_assigns_dict[k].append(i)
-    else:
-        team_assigns_dict[k] = [i]
+    ## dictionary of team assignments
+    team_assigns_dict = {}
+    for k,i in nonzeros:
+        if k in team_assigns_dict:
+            team_assigns_dict[k].append(i)
+        else:
+            team_assigns_dict[k] = [i]
 
-XKJ = x[K_s * M: 2 * K_s * M]
-XKJ = np.array(XKJ).reshape(K_s, M)
-
-# credited skills
-matrices = []
-for k,team in enumerate(XKJ):
-    team_members = team_assigns_dict[k]
-    matrix = []
-    for j, skill in enumerate(team):
-        matrix.append([(V[j,i] if skill == 1 else 0) for i in team_members])
-    matrices.append(matrix)
-
-ax = sns.heatmap(matrices[0], annot = True)
-plt.show()
+    XKJ = x[K_s * M: 2 * K_s * M]
+    XKJ = np.array(XKJ).reshape(K_s, M)
 
 
-# all skills
-matrices_all = []
-for k,team in enumerate(XKJ):
-    team_members = team_assigns_dict[k]
-    matrix = []
-    for j, skill in enumerate(team):
-        matrix.append([(V[j,i]) for i in team_members])
-    matrices_all.append(matrix)
 
-ax = sns.heatmap(matrices_all[0], annot = True)
-plt.show()
+    # credited skills
+    matrices = []
+    for k,team in enumerate(XKJ):
+        team_members = team_assigns_dict[k]
+        matrix = []
+        for j, skill in enumerate(team):
+            matrix.append([(V[j,i] if skill == 1 else 0) for i in team_members])
+        matrices.append(matrix)
 
-##### Save as pkl then read in the other file!! :) 
+    ax = sns.heatmap(matrices[0], annot = True)
+    plt.ylabel("Skills")
+    plt.show()
 
+
+    # all skills
+    matrices_all = []
+    for k,team in enumerate(XKJ):
+        team_members = team_assigns_dict[k]
+        matrix = []
+        for j, skill in enumerate(team):
+            matrix.append([(V[j,i]) for i in team_members])
+        matrices_all.append(matrix)
+
+    ax = sns.heatmap(matrices_all[0], annot = True)
+    plt.ylabel("Skills")
+    plt.show()
+
+    ##### Save as pkl then read in the other file!! :) 
 
 
 

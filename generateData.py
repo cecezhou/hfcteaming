@@ -10,20 +10,35 @@ import csv
 import pandas as pd
 from scipy.stats import percentileofscore
 
-M = 15
-W = 36
+def getopts(argv):
+    opts = {}  # Empty dictionary to store key-value pairs.
+    while argv:  # While there are arguments left to parse...
+        if argv[0][0] == '-':  # Found a "-name value" pair.
+            opts[argv[0]] = argv[1]  # Add key and value to the dictionary.
+        argv = argv[1:]  # Reduce the argument list by copying it starting from index 1.
+    return opts
+
+
+from sys import argv
+myargs = getopts(argv)
+
+
+
+
+M = 15 # number of skills
+W = int(myargs["-W"]) # number of total people
 
 
 # M by W_d matrix, rows are skills
-print("Generating Random Values Independently ")
+# print("Generating Random Values Independently ")
 V = np.random.uniform(0, 1, (M, W))
-print(V)
+# print(V)
 
 df = pd.DataFrame(V)
 df.to_csv("simulatedDataIndependent" + str(W) + ".csv")
 
 
-print("Generating Random Values Correlated")
+# print("Generating Random Values Correlated")
 blocksize = 5
 numblocks = int(M / blocksize)
 rho = 0.7
