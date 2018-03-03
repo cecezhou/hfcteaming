@@ -31,8 +31,9 @@ TIMELIMIT = int(myargs["-t"])
 s = int(myargs["-s"])
 r = int(myargs["-r"])
 Q = int(myargs["-Q"])# number of people per desired team
+k = int(myargs["-k"])
 # s = int(myargs["-s"])
-data = str(myargs["-input"])
+filename = str(myargs["-input"])
 print(TIMELIMIT, s, r, Q)
 
 # TIMELIMIT = 1000
@@ -42,28 +43,25 @@ print(TIMELIMIT, s, r, Q)
 
 
 ## Read in Data 
-data = pd.read_csv(data, header = 0)
+data = pd.read_csv(filename, header = 0)
 
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
 print("Total Number of Participants:", N) ### optimal is 909 when there is time limit of 1000
 
-W_d = int(N/2) 
-K_d = int(np.floor(W_d/ Q)) # number of diverse teams
-Q_reg = int(0.8 *  Q)
-Q_slack = int(0.2 * Q)
-W_reg = int(0.8 * W_d)
-W_slack = int(0.2 * W_d)
+W_d = N 
+K_d = k
+Q_reg = int(Q)
+Q_slack = 0
+W_reg = int(W_d)
+W_slack = 0
 
 
 ### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
 
 # first column is the participant's ID
 V = V[:, 1:]
-# Take the first half for the diverse LP ### TEMPORARILY ALSO TAKE 2nd HALF FOR LP
-V = V[:, W_d:]
-print("Number of participants in Diverse Teams:", V.shape[1])
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
 # for j in range(M):
 #   V[j] = (V[j]- np.mean(V[j]))/np.std(V[j]) 
@@ -87,7 +85,7 @@ my_lb = [0.0] * num_vars
 assert(len(my_ub) == len(my_obj))
 
 
-my_ctype = "I" * num_vars
+my_ctype = "B" * num_vars
 # RHS 
 my_rhs = [1.0] * W_d + [s] * W_d + [0.0] * (W_d * M * K_d) + [r] * (M * K_d) + [-Q_reg] * K_d + [-Q_slack] * K_d
 my_sense = "E" * W_d + "L" * (W_d  + W_d * M * K_d + M * K_d + 2 * K_d)
@@ -207,7 +205,7 @@ for team_id in range(K_d):
 
     ax = sns.heatmap(matrices[team_id], annot = True)
     plt.ylabel("Skills")
-    title = "Diverse_Team_Selected" + str(team_id) + "s=" + str(s) + "r=" + str(r)
+    title = "A" + str(filename) + "Diverse_Selected" + str(team_id) + "s=" + str(s) + "r=" + str(r) + ".png"
     plt.title(title)
     plt.savefig(title)
     plt.clf()
@@ -224,7 +222,7 @@ for team_id in range(K_d):
 
     ax = sns.heatmap(matrices_all[team_id], annot = True)
     plt.ylabel("Skills")
-    title = "Diverse_Team_All" + str(team_id) + "s=" + str(s) + "r=" + str(r)
+    title = "A" + str(filename) + "Diverse_All" + str(team_id) + "s=" + str(s) + "r=" + str(r) + ".png"
     plt.title(title)
     plt.savefig(title)
     plt.clf()

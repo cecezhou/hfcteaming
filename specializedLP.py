@@ -33,25 +33,24 @@ TIMELIMIT = int(myargs["-t"])
 p = int(myargs["-p"])
 Q = int(myargs["-Q"])# number of people per desired team
 s = int(myargs["-s"])
-data = str(myargs["-input"])
+k = int(myargs["-k"])
+filename = str(myargs["-input"])
 print(TIMELIMIT, p, Q)
 
 
-data = pd.read_csv(data, header = 0)
+data = pd.read_csv(filename, header = 0)
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
 print("Total Number of Participants:", N)
 
-W_d = int(N/2) 
-K_d = int(np.floor(W_d/ Q)) # number of diverse teams
-Q_reg = int(0.8 *  Q)
-Q_slack = int(0.2 * Q)
-W_reg = int(0.8 * W_d)
-W_slack = int(0.2 * W_d)
+W_s = N
+K_s = k # number of diverse teams
+Q_reg = Q
+Q_slack = 0
+W_reg = W_s
+W_slack = 0
 
-W_s = N - W_d
-K_s = int(np.floor((N - W_d)/Q))# number of specialized teams
 print("Number of People: ", W_s)
 print("Number of Teams: ", K_s)
 print("Number of Skills: ", M)
@@ -62,11 +61,6 @@ print("Number of Skills: ", M)
 
 # first column is the participant's ID
 V = V[:, 1:]
-# Take the second half for specialized LP
-V = V[:, W_d:]
-
-# print(V.shape)
-
 
 # normalize the data if we are using real data, but in simulation, the standard deviation is already determined
 # for j in range(M):
@@ -74,8 +68,10 @@ V = V[:, W_d:]
 # 	print(np.mean(V[j]))
 # 	print(np.std(V[j]))
 
-#
-G = max([sum(heapq.nlargest(Q, V[i])) for i in range(M)])
+
+G_js = [sum(heapq.nlargest(Q, V[i])) for i in range(M)]
+G = max(G_js)
+
 
 print("G", G)
 my_obj = np.array([1.0]*(K_s * M) + [0.0] * (K_s * M + W_s * K_s))
@@ -93,7 +89,7 @@ my_ctype = "C" * (K_s * M) + "B" * (K_s * M + W_s * K_s)
 # NOTE: in the nonzero populate function we don't need the column or row name
 ## TODO RHS
 my_rhs = [0] * (2 * K_s * M ) + [p]* K_s + [1] * W_s + [-Q_reg] * K_s + [-Q_slack] * K_s
-my_sense = "L" * (2 * K_s * M) + "E"*(W_s + K_s) + "L" * (K_s * 2)
+my_sense = "L" * (2 * K_s * M) + "L" *  (K_s) + "E" * (W_s) + "L" * (K_s * 2)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
 # print(len(my_sense))
@@ -180,21 +176,19 @@ if s == 1:
     ### -slack + G is the team value, nonzero value is the skill that is assigned to that team
     team_values = np.array(slack[:K_s * M])
     team_values = team_values.reshape(K_s, M)
-    if p == 1:
-        print([(idx,x) for idx, x in enumerate(team_values)])
-        team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
-    # else:
-    #     print([(idx,x) for idx, x in enumerate(team_values)])
-    #     team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
+    # print([(idx,x) for idx, x in enumerate(team_values)])
+    team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
 
     df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
     df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
 
-
+if s == 1:
     team_assigns = x[K_s * M * 2:]
     team_assigns = np.array(team_assigns)
     team_assigns = team_assigns.reshape(K_s, W_s)
 
+
+if s ==1:
     nonzeros = []
     for i in range(K_s):
         for j in range(W_s):
@@ -204,6 +198,7 @@ if s == 1:
     a = [b[1] for b in nonzeros]
     assert(len(set(a)) == len(nonzeros))
 
+if s ==1:
     df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
     ## NOTE THAT all indices must add # of diverse participants
     df_team_assigns.to_csv("IndspecializedAssignments" + str(N) + ".csv")
@@ -220,7 +215,7 @@ if s == 1:
     XKJ = np.array(XKJ).reshape(K_s, M)
 
 
-
+if s ==1:
     # credited skills
     for team_id in range(K_s):
         matrices = []
@@ -230,14 +225,14 @@ if s == 1:
             for j, skill in enumerate(team):
                 matrix.append([(V[j,i] if skill == 1 else 0) for i in team_members])
             matrices.append(matrix)
-
         ax = sns.heatmap(matrices[team_id], annot = True)
         plt.ylabel("Skills")
-        title = "Specialized_Team_Selected" + str(team_id) + "p=" + str(p)
+        title = "A" + str(filename) + str(W_s) +"Specialized_Selected" + str(team_id) + "p=" + str(p) + ".png"
         plt.title(title)
         plt.savefig(title)
         plt.clf()
 
+if s == 1:
     for team_id in range(K_s):
         # all skills
         matrices_all = []
@@ -247,10 +242,9 @@ if s == 1:
             for j, skill in enumerate(team):
                 matrix.append([(V[j,i]) for i in team_members])
             matrices_all.append(matrix)
-
         ax = sns.heatmap(matrices_all[team_id], annot = True)
         plt.ylabel("Skills")
-        title = "Specialized_Team_All" + str(team_id) + "p=" + str(p)
+        title = "A" + str(filename) + str(W_s) + "Specialized_All" + str(team_id) + "p=" + str(p) + ".png"
         plt.title(title)
         plt.savefig(title)
         plt.clf()
