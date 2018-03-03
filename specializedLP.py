@@ -69,7 +69,7 @@ V = V[:, 1:]
 # 	print(np.std(V[j]))
 
 
-G_js = [sum(heapq.nlargest(Q, V[i])) for i in range(M)]
+G_js = [sum(heapq.nlargest(Q + 1, V[i])) for i in range(M)]
 G = max(G_js)
 
 
@@ -78,7 +78,7 @@ my_obj = np.array([1.0]*(K_s * M) + [0.0] * (K_s * M + W_s * K_s))
 my_obj = my_obj.flatten()
 num_vars = 2* K_s * M  + W_s * K_s 
 my_ub = [G] * (K_s * M) + [1.0] * (K_s * M + W_s * K_s)
-my_lb = [0.0] * num_vars
+my_lb = [-cplex.infinity] * num_vars
 # print("Number of Variables: ", num_vars)
 assert(len(my_ub) == len(my_obj))
 
@@ -103,6 +103,7 @@ def populatebynonzero(prob):
 
     prob.linear_constraints.add(rhs=my_rhs, senses=my_sense)
     prob.variables.add(obj=my_obj, lb=my_lb, ub=my_ub, types=my_ctype)
+    # prob.variables.add(obj=my_obj,  ub=my_ub, types=my_ctype)
 
     rows1 = [[i] * (2) for i in range(K_s * M)]
     rows2 = [[[K_s * M + k*M + j] * (1 + W_s) for j in range(M)] for k in range(K_s)]
@@ -201,7 +202,7 @@ if s ==1:
 if s ==1:
     df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
     ## NOTE THAT all indices must add # of diverse participants
-    df_team_assigns.to_csv("IndspecializedAssignments" + str(N) + ".csv")
+    df_team_assigns.to_csv(str(filename) + "specializedAssignments" + str(N) + ".csv")
 
     ## dictionary of team assignments
     team_assigns_dict = {}

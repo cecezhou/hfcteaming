@@ -181,7 +181,7 @@ for i in range(K_d):
 
 df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
 ### NOTE THAT all indices must add # of diverse participants
-df_team_assigns.to_csv("diverseAssignments" + str(N) + ".csv")
+df_team_assigns.to_csv(str(filename) + "diverseAssignments" + str(N) + ".csv")
 team_assigns_dict = {}
 for k,i in nonzeros:
     if k in team_assigns_dict:
