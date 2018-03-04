@@ -88,7 +88,7 @@ assert(len(my_ub) == len(my_obj))
 my_ctype = "C" * (K_s * M) + "B" * (K_s * M + W_s * K_s)
 # NOTE: in the nonzero populate function we don't need the column or row name
 ## TODO RHS
-my_rhs = [0] * (2 * K_s * M ) + [p]* K_s + [1] * W_s + [-Q_reg] * K_s + [-Q_slack] * K_s
+my_rhs = [0] * (2 * K_s * M ) + [p]* K_s + [1] * W_s + [-Q_reg] * K_s + [Q_reg + 1] * K_s
 my_sense = "L" * (2 * K_s * M) + "L" *  (K_s) + "E" * (W_s) + "L" * (K_s * 2)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
@@ -111,7 +111,8 @@ def populatebynonzero(prob):
     rows3 = [[K_s * M * 2 + rownum]  * (M) for rownum in range(K_s)]
     rows4 = [[K_s * M * 2 + K_s + rownum] * (K_s) for rownum in range(W_s)]
     rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_reg) for rownum in range(K_s)]
-    rows6 = [[K_s * M * 2 + K_s + W_s + K_s + rownum] * (W_slack) for rownum in range(K_s)]
+    ## no team too big
+    rows6 = [[K_s * M * 2 + K_s + W_s + K_s + rownum] * (W_reg) for rownum in range(K_s)]
 
     rows = [rows1, rows2, rows3, rows4, rows5, rows6]
     # print("ROWSSHAPE")
@@ -127,7 +128,7 @@ def populatebynonzero(prob):
     cols3 = [[K_s * M + k * M + j for j in range(M)] for k in range(K_s)]
     cols4 = [[K_s * M  * 2 + k * W_s + i for k in range(K_s)] for i in range(W_s)]
     cols5 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg)] for k in range(K_s)]
-    cols6 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_s)]
+    cols6 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg)] for k in range(K_s)]
 
     cols = [cols1, cols2, cols3, cols4, cols5, cols6]
     # print("COLSHAPES")
@@ -144,9 +145,8 @@ def populatebynonzero(prob):
     temp = [[[1.0] + [-V[j][i] for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     vals2 = flatten(flatten(temp))
     # printshape(vals2)
-    vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * (W_reg + W_slack))
-    print("1.0", K_s * M + K_s * W_s)
-    print("-1.0", (K_s * (W_reg + W_slack)))
+    vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_reg) + [1.0] * (K_s * W_reg)
+
     vals = flatten([vals1,vals2, vals3])
     assert(len(vals) == len(rows))
     # print(list(zip(rows, cols, vals)))
