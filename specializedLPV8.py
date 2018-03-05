@@ -123,7 +123,8 @@ def populatebynonzero(prob):
     rows = flatten(flatten(rows))
 
 
-    cols1 = [[index, index + K_s * M] for index in range(K_s * M)] 
+    cols1 = [[[k * M + j, k * M + j + K_s * M] for j in range(M)] for k in range(K_s)] 
+    cols1 = flatten(cols1)
     cols2 = [[[k * M + j] + [K_s * M * 2 + k * W_s + i for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     cols2 = flatten(cols2)
     cols3 = [[K_s * M + k * M + j for j in range(M)] for k in range(K_s)]
