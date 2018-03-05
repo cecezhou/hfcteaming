@@ -10,7 +10,7 @@ import csv
 import pandas as pd
 import seaborn as sns; sns.set()
 import matplotlib.pyplot as plt
-
+import pickle
 
 
 def getopts(argv):
@@ -199,6 +199,10 @@ for k,i in nonzeros:
 
 XIJK = x[:K_d * M * W_d]
 XIJK = np.array(XIJK).reshape(K_d, M, W_d)
+
+with open(str(filename) + "XKJI" + str(N) + ".pkl", 'wb') as f:
+    pickle.dump(XIJK, f)
+
 
 # credited skills
 for team_id in range(K_d):

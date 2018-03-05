@@ -122,7 +122,8 @@ def populatebynonzero(prob):
     rows = flatten(flatten(rows))
 
 
-    cols1 = [[index, index + K_s * M] for index in range(K_s * M)] 
+    cols1 = [[[k * M + j, k * M + j + K_s * M] for j in range(M)] for k in range(K_s)] 
+    cols1 = flatten(cols1)
     cols2 = [[[k * M + j] + [K_s * M * 2 + k * W_s + i for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     cols2 = flatten(cols2)
     cols3 = [[K_s * M + k * M + j for j in range(M)] for k in range(K_s)]
@@ -172,16 +173,16 @@ slack = my_prob.solution.get_linear_slacks()
 x = my_prob.solution.get_values()
 
 
-## s is whether to store values or not 
-if s == 1:
-    ### -slack + G is the team value, nonzero value is the skill that is assigned to that team
-    team_values = np.array(slack[:K_s * M])
-    team_values = team_values.reshape(K_s, M)
-    # print([(idx,x) for idx, x in enumerate(team_values)])
-    team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
+# ## s is whether to store values or not 
+# if s == 1:
+#     ### -slack + G is the team value, nonzero value is the skill that is assigned to that team
+#     team_values = np.array(slack[:K_s * M])
+#     team_values = team_values.reshape(K_s, M)
+#     # print([(idx,x) for idx, x in enumerate(team_values)])
+#     team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
 
-    df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
-    df_team_values.to_csv("IndspecializedTeamValues" + str(N) + ".csv")
+#     df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
+#     df_team_values.to_csv(str(filename) + "specializedTeamValues" + str(N) + ".csv")
 
 if s == 1:
     team_assigns = x[K_s * M * 2:]
@@ -214,6 +215,14 @@ if s ==1:
 
     XKJ = x[K_s * M: 2 * K_s * M]
     XKJ = np.array(XKJ).reshape(K_s, M)
+
+    team_skills = []
+    for k,team in enumerate(XKJ):
+        for j,skill in enumerate(team):
+            if skill == 1:
+                team_skills.append([k,j])
+    df_team_skills = pd.DataFrame(team_skills, columns = ["Team Number", "Skill Number"])
+    df_team_skills.to_csv(str(filename) + "TeamSkills" + str(N) + ".csv")
 
 
 if s ==1:

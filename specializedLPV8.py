@@ -174,15 +174,15 @@ x = my_prob.solution.get_values()
 
 
 ## s is whether to store values or not 
-if s == 1:
-    ### -slack + G is the team value, nonzero value is the skill that is assigned to that team
-    team_values = np.array(slack[:K_s * M])
-    team_values = team_values.reshape(K_s, M)
-    # print([(idx,x) for idx, x in enumerate(team_values)])
-    team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
+# if s == 1:
+#     ### -slack + G is the team value, nonzero value is the skill that is assigned to that team
+#     team_values = np.array(slack[:K_s * M])
+#     team_values = team_values.reshape(K_s, M)
+#     # print([(idx,x) for idx, x in enumerate(team_values)])
+#     team_values_out = [[idx, -sum(team) + G, np.nonzero(team)[0]] for idx, team in enumerate(team_values)]
 
-    df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
-    df_team_values.to_csv(str(filename) + "NewSpecTeamValues" + str(N) + ".csv")
+#     df_team_values = pd.DataFrame(team_values_out, columns = ["Team Number", "Skill Total", "Skill Number"])
+#     df_team_values.to_csv(str(filename) + "NewSpecTeamValues" + str(N) + ".csv")
 
 if s == 1:
     team_assigns = x[K_s * M * 2:]
@@ -215,6 +215,14 @@ if s ==1:
 
     XKJ = x[K_s * M: 2 * K_s * M]
     XKJ = np.array(XKJ).reshape(K_s, M)
+
+    team_skills = []
+    for k,team in enumerate(XKJ):
+        for j,skill in enumerate(team):
+            if skill == 1:
+                team_skills.append([k,j])
+    df_team_skills = pd.DataFrame(team_skills, columns = ["Team Number", "Skill Number"])
+    df_team_skills.to_csv(str(filename) + "NewSpecTeamSkills" + str(N) + ".csv")
 
 
 if s ==1:
