@@ -57,16 +57,8 @@ print("Q_slack", Q_slack)
 print("Generating ", K_d, "diverse teams")
 
 
-
-### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
-
 # first column is the participant's ID
 V = V[:, 1:]
-# normalize the data if we are using real data, but in simulation, the standard deviation is already determined
-# for j in range(M):
-#   V[j] = (V[j]- np.mean(V[j]))/np.std(V[j]) 
-#   print(np.mean(V[j]))
-#   print(np.std(V[j]))
 
 
 # we need VIJ to be sorted by non slackers first, then slackers
@@ -87,8 +79,8 @@ assert(len(my_ub) == len(my_obj))
 my_ctype = "B" * num_vars
 # RHS 
 my_rhs = [1.0] * W_d + [s] * W_d + [0.0] * (W_d * M * K_d) + [r] * (M * K_d) + \
-            [-Q_reg] * K_d + [Q_reg + 1] * K_d + [-Q_slack] * K_d
-my_sense = "E" * W_d + "L" * (W_d  + W_d * M * K_d + M * K_d + 3 * K_d)
+            [-Q_reg] * K_d + [Q_reg + 1] * K_d + [-Q_slack] * K_d + [Q_slack + 1] * K_d
+my_sense = "E" * W_d + "L" * (W_d  + W_d * M * K_d + M * K_d + 4 * K_d)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
 
@@ -116,8 +108,9 @@ def populatebynonzero(prob):
 
     # \sum_{i \in U_slack} x_{ik} >= Q_slack, for all k \in K  {enough slackers per team}
     rows7 = [[W_d * 2 + W_d * M * K_d + M* K_d + 2 * K_d + rownum]  * (W_slack) for rownum in range(K_d)]
+    rows8 = [[W_d * 2 + W_d * M * K_d + M* K_d + 3 * K_d + rownum]  * (W_slack) for rownum in range(K_d)]
 
-    rows = [rows1, rows2, rows3, rows4, rows5, rows6, rows7]
+    rows = [rows1, rows2, rows3, rows4, rows5, rows6, rows7, rows8]
     # for r in rows:
     #     printshape(r)
     rows = flatten(flatten(rows))
@@ -140,9 +133,11 @@ def populatebynonzero(prob):
 
     # \sum_{i \in W_slack} x_{ik} >= Q_slack, for all k \in K  {enough slackers per team}
     cols7 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_d)]
+    cols8 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_d)]
+
 
     cols2 = flatten(cols2); cols3 = flatten(flatten(cols3)); cols4 = flatten(cols4)
-    cols = [cols1, cols2, cols3, cols4, cols5, cols6, cols7]
+    cols = [cols1, cols2, cols3, cols4, cols5, cols6, cols7, cols8]
     # for c in cols:
     #     printshape(c)
     cols = flatten(flatten(cols))
@@ -151,7 +146,8 @@ def populatebynonzero(prob):
     assert(len(cols) == len(rows))
     # print("Vals len:")
     vals = [1.0] * (K_d * W_d + K_d * M * W_d) + [1.0, -1.0] * (K_d * 
-                W_d * M) + [1.0] * (W_d * K_d * M) + [-1.0] * (W_reg * K_d) + [1.0] * (W_reg* K_d) + [-1.0] * (W_slack * K_d)
+                W_d * M) + [1.0] * (W_d * K_d * M) + [-1.0] * (W_reg * K_d) + [1.0] * (W_reg* K_d) + [-1.0] * (W_slack * K_d) \
+            + [1.0] * (W_slack * K_d)
     # print(len(vals))
 
     coeffs = zip(rows, cols, vals)
