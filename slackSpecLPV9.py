@@ -35,7 +35,6 @@ Q = int(myargs["-Q"])# number of people per desired team
 s = int(myargs["-s"])
 W_slack = int(myargs["-slack"])
 # k = int(myargs["-k"])
-b = int(myargs["-b"])
 filename = str(myargs["-input"])
 print(TIMELIMIT, p, Q)
 
@@ -51,6 +50,9 @@ K_s = int(np.floor(N/Q))
 W_reg = W_s - W_slack
 Q_reg = int(np.floor(W_reg/K_s))
 Q_slack = int(np.floor(W_slack/K_s))
+## minimum number of teams assigned to a skill
+b = int(np.floor(K_s/M))
+
 
 print("Number of People: ", W_s)
 print("Number of Teams: ", K_s)
@@ -89,8 +91,8 @@ assert(len(my_ub) == len(my_obj))
 my_ctype = "C" * (K_s * M) + "B" * (K_s * M + W_s * K_s)
 # NOTE: in the nonzero populate function we don't need the column or row name
 ## TODO RHS
-my_rhs = [0] * (2 * K_s * M ) + [p]* K_s + [1] * W_s + [-Q_reg] * K_s + [Q_reg + 1] * K_s + [-b] * (M)
-my_sense = "L" * (2 * K_s * M) + "L" *  (K_s) + "E" * (W_s) + "L" * (K_s * 2 + M)
+my_rhs = [0] * (2 * K_s * M ) + [p]* K_s + [1] * W_s + [-Q_reg] * K_s + [Q_reg + 1] * K_s + [-b] * (M) + [-Q_slack] * K_s
+my_sense = "L" * (2 * K_s * M) + "L" *  (K_s) + "E" * (W_s) + "L" * (K_s * 3 + M)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
 # print(len(my_sense))
@@ -114,8 +116,13 @@ def populatebynonzero(prob):
     rows5 = [[K_s * M * 2 + K_s + W_s + rownum] * (W_reg) for rownum in range(K_s)]
     ## no team too big
     rows6 = [[K_s * M * 2 + K_s + W_s + K_s + rownum] * (W_reg) for rownum in range(K_s)]
+    # b constraint
     rows7 = [[K_s * M * 2 + K_s + W_s + 2 * K_s + rownum] * (K_s) for rownum in range(M)]
-    rows = [rows1, rows2, rows3, rows4, rows5, rows6, rows7]
+
+
+    rows8 = [[K_s * M * 2 + K_s + W_s + 2 * K_s  + M + rownum] * (W_slack) for rownum in range(K_s)]
+
+    rows = [rows1, rows2, rows3, rows4, rows5, rows6, rows7, rows8]
     # print("ROWSSHAPE")
     # for r in rows:
     #     printshape(r)
@@ -132,7 +139,9 @@ def populatebynonzero(prob):
     cols5 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg)] for k in range(K_s)]
     cols6 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg)] for k in range(K_s)]
     cols7 = [[K_s * M + k * M + j for k in range(K_s)] for j in range(M)]
-    cols = [cols1, cols2, cols3, cols4, cols5, cols6, cols7]
+
+    cols8 = [[K_s * M  * 2 + k * W_s + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_s)]
+    cols = [cols1, cols2, cols3, cols4, cols5, cols6, cols7, cols8]
     # print("COLSHAPES")
     # for c in cols:
     #     printshape(c)
@@ -147,8 +156,7 @@ def populatebynonzero(prob):
     temp = [[[1.0] + [-V[j][i] for i in range(W_s)] for j in range(M)] for k in range(K_s)]
     vals2 = flatten(flatten(temp))
     # printshape(vals2)
-    vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_reg) + [1.0] * (K_s * W_reg) + [-1.0] * (K_s * M)
-
+    vals3 = [1.0] * (K_s * M + K_s * W_s) + [-1.0] * (K_s * W_reg) + [1.0] * (K_s * W_reg) + [-1.0] * (K_s * M + K_s * W_slack) 
     vals = flatten([vals1,vals2, vals3])
     assert(len(vals) == len(rows))
     # print(list(zip(rows, cols, vals)))

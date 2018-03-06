@@ -38,10 +38,6 @@ filename = str(myargs["-input"])
 print(TIMELIMIT, s, r, Q)
 
 # TIMELIMIT = 1000
-# s = 2
-# r = 2
-
-
 
 ## Read in Data 
 data = pd.read_csv(filename, header = 0)
@@ -49,13 +45,17 @@ data = pd.read_csv(filename, header = 0)
 V = data.values
 M = V.shape[0]
 N = V.shape[1] - 1
-print("Total Number of Participants:", N) ### optimal is 909 when there is time limit of 1000
+print("Total Number of Participants:", N) 
 
 W_d = N 
 K_d = int(np.floor(N/Q))
 W_reg = W_d - W_slack
 Q_reg = int(np.floor(W_reg/K_d))
 Q_slack = int(np.floor(W_slack/K_d))
+print("Q_reg", Q_reg)
+print("Q_slack", Q_slack)
+print("Generating ", K_d, "diverse teams")
+
 
 
 ### TODO randomly order the data, and mark participant's ID's, so that the output knows which person is which
@@ -73,7 +73,6 @@ V = V[:, 1:]
 # let W_reg and W_slack be the number of each respectively
 # no longer need adding dummy skill // V = np.append(V, [[0]*W_d], axis = 0)
 
-print("Generating ", K_d, "diverse teams")
 # max_x  \sum_{i \in W_d} \sum_{j\in M} \sum_{k \in K_d} x_{ijk} v_{ij}
 my_obj = np.array([V for _ in range(K_d)])
 my_obj = my_obj.flatten()
@@ -87,11 +86,11 @@ assert(len(my_ub) == len(my_obj))
 
 my_ctype = "B" * num_vars
 # RHS 
-my_rhs = [1.0] * W_d + [s] * W_d + [0.0] * (W_d * M * K_d) + [r] * (M * K_d) + [-Q_reg] * K_d + [Q_reg + 1] * K_d
-my_sense = "E" * W_d + "L" * (W_d  + W_d * M * K_d + M * K_d + 2 * K_d)
+my_rhs = [1.0] * W_d + [s] * W_d + [0.0] * (W_d * M * K_d) + [r] * (M * K_d) + \
+            [-Q_reg] * K_d + [Q_reg + 1] * K_d + [-Q_slack] * K_d
+my_sense = "E" * W_d + "L" * (W_d  + W_d * M * K_d + M * K_d + 3 * K_d)
 flatten = lambda l: [item for sublist in l for item in sublist]
 assert(len(my_rhs) == len(my_sense))
-print(len(my_sense))
 
 def printshape(l):
     print(np.array(l).shape)
@@ -113,12 +112,12 @@ def populatebynonzero(prob):
     # \sum_{i \in U_reg} x_{ik} >= Q_reg, for all k \in K  {enough non-slackers per team}
     rows5 = [[W_d * 2 + W_d * M * K_d + M* K_d + rownum]  * (W_reg) for rownum in range(K_d)]
     #\sum_{i\in U_reg} x_{ik} <= Q_reg +1, for all k \in K {no team too big}
-    rows6 = [[W_d * 2 + W_d * M * K_d + M* K_d +  K_d + rownum] * (W_reg) for rownum in range(K_d)]
+    rows6 = [[W_d * 2 + W_d * M * K_d + M* K_d + K_d + rownum] * (W_reg) for rownum in range(K_d)]
 
     # \sum_{i \in U_slack} x_{ik} >= Q_slack, for all k \in K  {enough slackers per team}
-    # rows6 = [[W_d * 2 + W_d * M * K_d + M* K_d + K_d + rownum]  * (W_slack) for rownum in range(K_d)]
+    rows7 = [[W_d * 2 + W_d * M * K_d + M* K_d + 2 * K_d + rownum]  * (W_slack) for rownum in range(K_d)]
 
-    rows = [rows1, rows2, rows3, rows4, rows5, rows6]
+    rows = [rows1, rows2, rows3, rows4, rows5, rows6, rows7]
     # for r in rows:
     #     printshape(r)
     rows = flatten(flatten(rows))
@@ -140,10 +139,10 @@ def populatebynonzero(prob):
     cols6 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg)] for k in range(K_d)]
 
     # \sum_{i \in W_slack} x_{ik} >= Q_slack, for all k \in K  {enough slackers per team}
-   #  cols6 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_d)]
+    cols7 = [[W_d * M * K_d + W_d * k + i for i in range(W_reg, W_reg + W_slack)] for k in range(K_d)]
 
     cols2 = flatten(cols2); cols3 = flatten(flatten(cols3)); cols4 = flatten(cols4)
-    cols = [cols1, cols2, cols3, cols4, cols5, cols6]
+    cols = [cols1, cols2, cols3, cols4, cols5, cols6, cols7]
     # for c in cols:
     #     printshape(c)
     cols = flatten(flatten(cols))
@@ -152,7 +151,7 @@ def populatebynonzero(prob):
     assert(len(cols) == len(rows))
     # print("Vals len:")
     vals = [1.0] * (K_d * W_d + K_d * M * W_d) + [1.0, -1.0] * (K_d * 
-                W_d * M) + [1.0] * (W_d * K_d * M) + [-1.0] * (W_reg * K_d) + [1.0] * (W_reg * K_d)
+                W_d * M) + [1.0] * (W_d * K_d * M) + [-1.0] * (W_reg * K_d) + [1.0] * (W_reg* K_d) + [-1.0] * (W_slack * K_d)
     # print(len(vals))
 
     coeffs = zip(rows, cols, vals)
@@ -188,7 +187,7 @@ for i in range(K_d):
 
 df_team_assigns = pd.DataFrame(nonzeros, columns = ["Team Number", "User ID"])
 ### NOTE THAT all indices must add # of diverse participants
-df_team_assigns.to_csv(str(filename) + "diverseAssignments" + str(N) + ".csv")
+df_team_assigns.to_csv(str(filename) + "slackDivAssignments" + str(N) + ".csv")
 team_assigns_dict = {}
 for k,i in nonzeros:
     if k in team_assigns_dict:
@@ -200,7 +199,7 @@ for k,i in nonzeros:
 XIJK = x[:K_d * M * W_d]
 XIJK = np.array(XIJK).reshape(K_d, M, W_d)
 
-with open(str(filename) + "XKJI" + str(N) + ".pkl", 'wb') as f:
+with open(str(filename) + "SlackXKJI" + str(N) + ".pkl", 'wb') as f:
     pickle.dump(XIJK, f)
 
 
@@ -216,7 +215,7 @@ for team_id in range(K_d):
 
     ax = sns.heatmap(matrices[team_id], annot = True)
     plt.ylabel("Skills")
-    title = "A" + str(filename) + "Diverse_Selected" + str(team_id) + "s=" + str(s) + "r=" + str(r) + ".png"
+    title = "A" + str(filename) + "SlackDiverse_Selected" + str(team_id) + "s=" + str(s) + "r=" + str(r) + ".png"
     plt.title(title)
     plt.savefig(title)
     plt.clf()
@@ -233,7 +232,7 @@ for team_id in range(K_d):
 
     ax = sns.heatmap(matrices_all[team_id], annot = True)
     plt.ylabel("Skills")
-    title = "A" + str(filename) + "Diverse_All" + str(team_id) + "s=" + str(s) + "r=" + str(r) + ".png"
+    title = "A" + str(filename) + "SlackDiverse_All" + str(team_id) + "s=" + str(s) + "r=" + str(r) + ".png"
     plt.title(title)
     plt.savefig(title)
     plt.clf()
